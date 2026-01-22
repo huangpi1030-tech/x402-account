@@ -4,6 +4,12 @@ import { useState } from "react";
 import { CheckCircle2, Clock, AlertCircle, ExternalLink } from "lucide-react";
 import { TransactionStatus, CanonicalRecord } from "@/types";
 import { generateMockTransactions } from "@/app/lib/mockData";
+import {
+  formatDateTime,
+  formatAmountDisplay,
+  truncateHash,
+  maskAddress,
+} from "@/app/lib/formatters";
 
 /**
  * 交易记录状态徽章组件
@@ -69,24 +75,6 @@ function StatusBadge({ status }: { status: TransactionStatus }) {
  * 使用 CanonicalRecord 类型，对应 PRD 第 8.3 节：Canonical Record v2
  */
 function TransactionItem({ transaction }: { transaction: CanonicalRecord }) {
-  // 格式化时间显示（ISO 8601 转本地时间）
-  const formatDateTime = (isoString?: string) => {
-    if (!isoString) return "未知";
-    const date = new Date(isoString);
-    return date.toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  // 格式化金额显示（带货币符号）
-  const formatAmount = (amount: string, assetSymbol: string) => {
-    return `${amount} ${assetSymbol}`;
-  };
-
   // 格式化网络显示（首字母大写）
   const formatNetwork = (network: string) => {
     return network.charAt(0).toUpperCase() + network.slice(1);
@@ -118,7 +106,11 @@ function TransactionItem({ transaction }: { transaction: CanonicalRecord }) {
             <p className="flex items-center space-x-2">
               <span className="font-medium">金额:</span>
               <span className="text-gray-900 font-semibold">
-                {formatAmount(transaction.amount_decimal_str, transaction.asset_symbol)}
+                {formatAmountDisplay(
+                  transaction.amount_decimal_str,
+                  transaction.asset_symbol,
+                  transaction.decimals
+                )}
               </span>
               <span className="text-gray-500">
                 ({formatNetwork(transaction.network)})
@@ -126,13 +118,23 @@ function TransactionItem({ transaction }: { transaction: CanonicalRecord }) {
               {/* 显示法币价值（如果存在） */}
               {transaction.fiat_value_at_time && (
                 <span className="text-gray-500">
-                  ≈ {transaction.fiat_value_at_time} {transaction.fx_fiat_currency}
+                  ≈ {formatAmountDisplay(
+                    transaction.fiat_value_at_time,
+                    transaction.fx_fiat_currency,
+                    2
+                  )}
                 </span>
               )}
             </p>
             {transaction.paid_at && (
               <p className="text-xs text-gray-500">
-                支付时间: {formatDateTime(transaction.paid_at)}
+                支付时间: {formatDateTime(transaction.paid_at, { includeTime: true })}
+              </p>
+            )}
+            {/* 显示钱包地址（脱敏） */}
+            {transaction.payee_wallet && (
+              <p className="text-xs text-gray-500">
+                收款地址: {maskAddress(transaction.payee_wallet)}
               </p>
             )}
             {/* 显示分类信息（如果存在） */}
@@ -153,7 +155,7 @@ function TransactionItem({ transaction }: { transaction: CanonicalRecord }) {
               title="查看链上交易"
               onClick={() => {
                 // 暂时只在控制台输出，后续可跳转到区块链浏览器
-                console.log("查看交易:", transaction.tx_hash);
+                console.log("查看交易:", truncateHash(transaction.tx_hash));
               }}
             >
               <ExternalLink className="h-4 w-4" />
