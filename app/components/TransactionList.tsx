@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+"use client";
+
+import { useEffect } from "react";
 import { CheckCircle2, Clock, AlertCircle, ExternalLink } from "lucide-react";
 import { TransactionStatus, CanonicalRecord } from "@/types";
-import { generateMockTransactions } from "@/app/lib/mockData";
 import {
   formatDateTime,
   formatAmountDisplay,
   truncateHash,
   maskAddress,
 } from "@/app/lib/formatters";
+import { useTransactionStore } from "@/app/store/useTransactionStore";
 
 /**
  * 交易记录状态徽章组件
@@ -170,41 +172,61 @@ function TransactionItem({ transaction }: { transaction: CanonicalRecord }) {
 /**
  * 交易历史列表组件
  * 显示所有交易记录的列表
- * 使用 CanonicalRecord 类型和 Mock 数据
+ * 使用 Zustand 状态管理和 IndexedDB 存储
  */
 export default function TransactionList() {
-  // 使用 useState 管理交易列表（后续可替换为真实 API 调用）
-  const [transactions] = useState<CanonicalRecord[]>(() => {
-    // 初始化时加载 Mock 数据
-    const mockData = generateMockTransactions();
-    console.log("加载交易记录:", mockData.length, "笔");
-    return mockData;
-  });
+  const {
+    filteredTransactions,
+    isLoading,
+    error,
+    loadTransactions,
+  } = useTransactionStore();
+
+  // 组件挂载时加载交易记录
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* 列表标题和统计 */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900">
-          交易记录 ({transactions.length})
+          交易记录 ({filteredTransactions.length})
         </h2>
       </div>
 
+      {/* 错误提示 */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-800">{error}</p>
+        </div>
+      )}
+
+      {/* 加载状态 */}
+      {isLoading && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">加载中...</p>
+        </div>
+      )}
+
       {/* 交易列表 */}
-      <div className="space-y-3">
-        {transactions.length > 0 ? (
-          transactions.map((transaction) => (
-            <TransactionItem
-              key={transaction.event_id}
-              transaction={transaction}
-            />
-          ))
-        ) : (
-          <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
-            <p className="text-gray-500">暂无交易记录</p>
-          </div>
-        )}
-      </div>
+      {!isLoading && (
+        <div className="space-y-3">
+          {filteredTransactions.length > 0 ? (
+            filteredTransactions.map((transaction) => (
+              <TransactionItem
+                key={transaction.event_id}
+                transaction={transaction}
+              />
+            ))
+          ) : (
+            <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+              <p className="text-gray-500">暂无交易记录</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
