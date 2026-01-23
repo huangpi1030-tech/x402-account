@@ -1,4 +1,4 @@
-import Header from "./components/Header";
+import PageLayout from "./components/PageLayout";
 import SearchBar from "./components/SearchBar";
 import TransactionList from "./components/TransactionList";
 
@@ -8,10 +8,9 @@ import TransactionList from "./components/TransactionList";
  */
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
+    <PageLayout>
       <SearchBar />
       <TransactionList />
-    </div>
+    </PageLayout>
   );
 }

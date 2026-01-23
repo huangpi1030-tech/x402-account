@@ -22,6 +22,8 @@ interface TransactionFilters {
   startDate?: string;
   endDate?: string;
   searchQuery?: string;
+  minAmount?: string;
+  maxAmount?: string;
 }
 
 interface TransactionStore {
@@ -170,6 +172,20 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
           t.merchant_domain.toLowerCase().includes(query) ||
           t.description?.toLowerCase().includes(query) ||
           t.order_id?.toLowerCase().includes(query)
+      );
+    }
+
+    // 金额范围筛选
+    if (filters.minAmount) {
+      const min = parseFloat(filters.minAmount);
+      filtered = filtered.filter(
+        (t) => parseFloat(t.amount_decimal_str) >= min
+      );
+    }
+    if (filters.maxAmount) {
+      const max = parseFloat(filters.maxAmount);
+      filtered = filtered.filter(
+        (t) => parseFloat(t.amount_decimal_str) <= max
       );
     }
 

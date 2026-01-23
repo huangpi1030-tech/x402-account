@@ -12,6 +12,7 @@ import {
   maskAddress,
 } from "@/app/lib/formatters";
 import { useTransactionStore } from "@/app/store/useTransactionStore";
+import { EmptyState } from "./ui/EmptyState";
 
 /**
  * 交易记录状态徽章组件
@@ -221,8 +222,11 @@ export default function TransactionList() {
               />
             ))
           ) : (
-            <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
-              <p className="text-gray-500">暂无交易记录</p>
+            <div className="bg-white border border-gray-200 rounded-lg">
+              <EmptyState
+                title="暂无交易记录"
+                description="没有找到匹配的交易记录，请尝试调整筛选条件"
+              />
             </div>
           )}
         </div>
