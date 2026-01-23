@@ -22,6 +22,7 @@ interface RuleStore {
   addRule: (rule: Rule) => void;
   updateRule: (ruleId: UUID, updates: Partial<Rule>) => void;
   deleteRule: (ruleId: UUID) => void;
+  toggleRule: (ruleId: UUID) => void;
   setCurrentEditingRule: (rule: Rule | null) => void;
   clearError: () => void;
 }
@@ -73,6 +74,17 @@ export const useRuleStore = create<RuleStore>((set) => ({
   deleteRule: (ruleId: UUID) => {
     set((state) => ({
       rules: state.rules.filter((rule) => rule.rule_id !== ruleId),
+    }));
+  },
+
+  // 切换规则启用状态
+  toggleRule: (ruleId: UUID) => {
+    set((state) => ({
+      rules: state.rules.map((rule) =>
+        rule.rule_id === ruleId
+          ? { ...rule, enabled: !rule.enabled }
+          : rule
+      ),
     }));
   },
 

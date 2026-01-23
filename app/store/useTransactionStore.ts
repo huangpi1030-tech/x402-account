@@ -24,6 +24,8 @@ interface TransactionFilters {
   searchQuery?: string;
   minAmount?: string;
   maxAmount?: string;
+  confidence?: string; // "high" | "medium" | "low"
+  network?: string;
 }
 
 interface TransactionStore {
