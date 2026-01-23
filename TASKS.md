@@ -330,16 +330,16 @@
 ## 阶段十：文档与部署（Documentation）
 
 ### 10.1 开发文档
-- [ ] 编写组件使用文档
-- [ ] 编写 API 接口文档
-- [ ] 编写数据模型文档
-- [ ] 编写开发规范文档
+- [x] 编写组件使用文档 (`docs/COMPONENTS.md`)
+- [x] 编写 API 接口文档 (`docs/API.md`)
+- [x] 编写数据模型文档 (`docs/DATA_MODEL.md`)
+- [x] 编写开发规范文档 (`docs/DEVELOPMENT.md`)
 
 ### 10.2 部署准备
-- [ ] 配置生产环境变量
-- [ ] 配置构建优化
-- [ ] 配置错误监控（如 Sentry）
-- [ ] 配置性能监控
+- [x] 配置生产环境变量 (`docs/DEPLOYMENT.md`)
+- [x] 配置构建优化 (`docs/DEPLOYMENT.md`)
+- [x] 配置错误监控（如 Sentry）(`docs/DEPLOYMENT.md`)
+- [x] 配置性能监控 (`docs/DEPLOYMENT.md`)
 
 ---
 
