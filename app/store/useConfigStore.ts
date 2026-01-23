@@ -8,6 +8,11 @@
 
 import { create } from "zustand";
 import { WalletConfig, FxConfig, RpcPoolConfig } from "@/types";
+import {
+  walletConfigStorage,
+  fxConfigStorage,
+  rpcConfigStorage,
+} from "@/app/lib/storage/localStorage";
 
 interface ConfigStore {
   // 状态
@@ -35,20 +40,18 @@ export const useConfigStore = create<ConfigStore>((set) => ({
   isLoading: false,
   error: null,
 
-  // 加载配置（暂时使用 localStorage，后续连接 IndexedDB）
+  // 加载配置（从 localStorage 加载）
   loadConfigs: async () => {
     set({ isLoading: true, error: null });
     try {
-      // TODO: 从 IndexedDB 加载配置
-      // 暂时从 localStorage 读取
-      const walletConfigsStr = localStorage.getItem("x402_wallet_configs");
-      const fxConfigStr = localStorage.getItem("x402_fx_config");
-      const rpcConfigStr = localStorage.getItem("x402_rpc_config");
+      const walletConfigs = walletConfigStorage.getAll<WalletConfig>();
+      const fxConfig = fxConfigStorage.get<FxConfig>();
+      const rpcPoolConfig = rpcConfigStorage.get<RpcPoolConfig>();
 
       set({
-        walletConfigs: walletConfigsStr ? JSON.parse(walletConfigsStr) : [],
-        fxConfig: fxConfigStr ? JSON.parse(fxConfigStr) : null,
-        rpcPoolConfig: rpcConfigStr ? JSON.parse(rpcConfigStr) : null,
+        walletConfigs,
+        fxConfig,
+        rpcPoolConfig,
         isLoading: false,
       });
     } catch (error) {
@@ -63,7 +66,7 @@ export const useConfigStore = create<ConfigStore>((set) => ({
   addWalletConfig: (config: WalletConfig) => {
     set((state) => {
       const newConfigs = [...state.walletConfigs, config];
-      localStorage.setItem("x402_wallet_configs", JSON.stringify(newConfigs));
+      walletConfigStorage.saveAll(newConfigs);
       return { walletConfigs: newConfigs };
     });
   },
@@ -74,7 +77,7 @@ export const useConfigStore = create<ConfigStore>((set) => ({
       const newConfigs = state.walletConfigs.map((config) =>
         config.wallet_address === address ? { ...config, ...updates } : config
       );
-      localStorage.setItem("x402_wallet_configs", JSON.stringify(newConfigs));
+      walletConfigStorage.saveAll(newConfigs);
       return { walletConfigs: newConfigs };
     });
   },
@@ -85,20 +88,20 @@ export const useConfigStore = create<ConfigStore>((set) => ({
       const newConfigs = state.walletConfigs.filter(
         (config) => config.wallet_address !== address
       );
-      localStorage.setItem("x402_wallet_configs", JSON.stringify(newConfigs));
+      walletConfigStorage.saveAll(newConfigs);
       return { walletConfigs: newConfigs };
     });
   },
 
   // 设置 FX 配置
   setFxConfig: (config: FxConfig) => {
-    localStorage.setItem("x402_fx_config", JSON.stringify(config));
+    fxConfigStorage.save(config);
     set({ fxConfig: config });
   },
 
   // 设置 RPC 池配置
   setRpcPoolConfig: (config: RpcPoolConfig) => {
-    localStorage.setItem("x402_rpc_config", JSON.stringify(config));
+    rpcConfigStorage.save(config);
     set({ rpcPoolConfig: config });
   },
 

@@ -8,6 +8,7 @@
 
 import { create } from "zustand";
 import { Rule, UUID } from "@/types";
+import { rulesStorage } from "@/app/lib/storage/localStorage";
 
 interface RuleStore {
   // 状态
@@ -34,13 +35,12 @@ export const useRuleStore = create<RuleStore>((set) => ({
   isLoading: false,
   error: null,
 
-  // 加载规则列表（暂时使用 Mock 数据，后续连接 IndexedDB）
+  // 加载规则列表（从 localStorage 加载）
   loadRules: async () => {
     set({ isLoading: true, error: null });
     try {
-      // TODO: 从 IndexedDB 加载规则
-      // 暂时使用空数组
-      set({ rules: [], isLoading: false });
+      const rules = rulesStorage.getAll<Rule>();
+      set({ rules, isLoading: false });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "加载规则失败",
@@ -51,41 +51,50 @@ export const useRuleStore = create<RuleStore>((set) => ({
 
   // 设置规则列表
   setRules: (rules: Rule[]) => {
+    rulesStorage.saveAll(rules);
     set({ rules });
   },
 
   // 添加规则
   addRule: (rule: Rule) => {
-    set((state) => ({
-      rules: [...state.rules, rule],
-    }));
+    set((state) => {
+      const newRules = [...state.rules, rule];
+      rulesStorage.saveAll(newRules);
+      return { rules: newRules };
+    });
   },
 
   // 更新规则
   updateRule: (ruleId: UUID, updates: Partial<Rule>) => {
-    set((state) => ({
-      rules: state.rules.map((rule) =>
+    set((state) => {
+      const newRules = state.rules.map((rule) =>
         rule.rule_id === ruleId ? { ...rule, ...updates } : rule
-      ),
-    }));
+      );
+      rulesStorage.saveAll(newRules);
+      return { rules: newRules };
+    });
   },
 
   // 删除规则
   deleteRule: (ruleId: UUID) => {
-    set((state) => ({
-      rules: state.rules.filter((rule) => rule.rule_id !== ruleId),
-    }));
+    set((state) => {
+      const newRules = state.rules.filter((rule) => rule.rule_id !== ruleId);
+      rulesStorage.saveAll(newRules);
+      return { rules: newRules };
+    });
   },
 
   // 切换规则启用状态
   toggleRule: (ruleId: UUID) => {
-    set((state) => ({
-      rules: state.rules.map((rule) =>
+    set((state) => {
+      const newRules = state.rules.map((rule) =>
         rule.rule_id === ruleId
           ? { ...rule, enabled: !rule.enabled }
           : rule
-      ),
-    }));
+      );
+      rulesStorage.saveAll(newRules);
+      return { rules: newRules };
+    });
   },
 
   // 设置当前编辑的规则

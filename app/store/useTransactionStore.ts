@@ -15,6 +15,7 @@ import {
   getCanonicalByTimeRange,
   initIndexedDB,
 } from "@/app/lib/storage";
+import { filtersStorage } from "@/app/lib/storage/localStorage";
 import { generateMockTransactions } from "@/app/lib/mockData";
 
 interface TransactionFilters {
@@ -57,19 +58,26 @@ interface TransactionStore {
   clearError: () => void;
 }
 
-export const useTransactionStore = create<TransactionStore>((set, get) => ({
-  // 初始状态
-  transactions: [],
-  filteredTransactions: [],
-  paginatedTransactions: [],
-  selectedTransactionId: null,
-  filters: {},
-  sortField: "time" as SortField,
-  sortOrder: "desc" as SortOrder,
-  isLoading: false,
-  error: null,
-  currentPage: 1,
-  pageSize: 20,
+export const useTransactionStore = create<TransactionStore>((set, get) => {
+  // 从 localStorage 加载保存的筛选条件（仅在客户端）
+  const savedFilters = typeof window !== "undefined" ? (filtersStorage.get<TransactionFilters>() || {}) : {};
+  const savedSortField = typeof window !== "undefined" ? ((localStorage.getItem("x402_sortField") || "time") as SortField) : ("time" as SortField);
+  const savedSortOrder = typeof window !== "undefined" ? ((localStorage.getItem("x402_sortOrder") || "desc") as SortOrder) : ("desc" as SortOrder);
+  const savedPage = typeof window !== "undefined" ? parseInt(localStorage.getItem("x402_currentPage") || "1", 10) : 1;
+
+  return {
+    // 初始状态（从 localStorage 恢复）
+    transactions: [],
+    filteredTransactions: [],
+    paginatedTransactions: [],
+    selectedTransactionId: null,
+    filters: savedFilters,
+    sortField: savedSortField,
+    sortOrder: savedSortOrder,
+    isLoading: false,
+    error: null,
+    currentPage: savedPage,
+    pageSize: 20,
 
   // 加载所有交易记录
   loadTransactions: async () => {
@@ -141,9 +149,12 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
 
   // 设置筛选条件
   setFilters: (newFilters: Partial<TransactionFilters>) => {
-    set((state) => ({
-      filters: { ...state.filters, ...newFilters },
-    }));
+    set((state) => {
+      const updatedFilters = { ...state.filters, ...newFilters };
+      // 保存到 localStorage
+      filtersStorage.save(updatedFilters);
+      return { filters: updatedFilters };
+    });
     // 自动应用筛选
     get().applyFilters();
   },
@@ -154,7 +165,12 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
     const newField = field;
     const newOrder =
       order || (field === sortField && sortOrder === "desc" ? "asc" : "desc");
-    set({ sortField: newField, sortOrder: newOrder });
+    // 保存到 localStorage（仅在客户端）
+    if (typeof window !== "undefined" && newField) {
+      localStorage.setItem("x402_sortField", newField);
+      localStorage.setItem("x402_sortOrder", newOrder);
+    }
+    set({ sortField: newField, sortOrder: newOrder, currentPage: 1 });
     get().applyFilters();
   },
 
@@ -271,6 +287,10 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
 
   // 设置页码
   setPage: (page: number) => {
+    // 保存到 localStorage（仅在客户端）
+    if (typeof window !== "undefined") {
+      localStorage.setItem("x402_currentPage", page.toString());
+    }
     set({ currentPage: page });
     get().applyFilters();
   },
@@ -279,4 +299,5 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
   clearError: () => {
     set({ error: null });
   },
-}));
+  };
+});

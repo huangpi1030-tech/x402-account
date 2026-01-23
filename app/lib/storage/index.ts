@@ -4,3 +4,4 @@
 
 export * from "./indexedDB";
 export * from "./encryption";
+export * from "./localStorage";
