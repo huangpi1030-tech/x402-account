@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { useEffect } from "react";
 import { CheckCircle2, Clock, AlertCircle, ExternalLink } from "lucide-react";
 import { TransactionStatus, CanonicalRecord } from "@/types";
@@ -77,14 +75,23 @@ function StatusBadge({ status }: { status: TransactionStatus }) {
  * 交易记录列表项组件
  * 使用 CanonicalRecord 类型，对应 PRD 第 8.3 节：Canonical Record v2
  */
-function TransactionItem({ transaction }: { transaction: CanonicalRecord }) {
+function TransactionItem({
+  transaction,
+  onClick,
+}: {
+  transaction: CanonicalRecord;
+  onClick?: () => void;
+}) {
   // 格式化网络显示（首字母大写）
   const formatNetwork = (network: string) => {
     return network.charAt(0).toUpperCase() + network.slice(1);
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+    <div
+      className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between">
         {/* 左侧：交易信息 */}
         <div className="flex-1 min-w-0">
@@ -175,7 +182,13 @@ function TransactionItem({ transaction }: { transaction: CanonicalRecord }) {
  * 显示所有交易记录的列表
  * 使用 Zustand 状态管理和 IndexedDB 存储
  */
-export default function TransactionList() {
+interface TransactionListProps {
+  onTransactionClick?: (eventId: string) => void;
+}
+
+export default function TransactionList({
+  onTransactionClick,
+}: TransactionListProps = {}) {
   const {
     filteredTransactions,
     isLoading,
@@ -219,6 +232,7 @@ export default function TransactionList() {
               <TransactionItem
                 key={transaction.event_id}
                 transaction={transaction}
+                onClick={() => onTransactionClick?.(transaction.event_id)}
               />
             ))
           ) : (

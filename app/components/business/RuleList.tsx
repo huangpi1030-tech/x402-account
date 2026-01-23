@@ -12,7 +12,11 @@ import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
 import { CheckCircle2, XCircle, Edit, Trash2 } from "lucide-react";
 
-export function RuleList() {
+interface RuleListProps {
+  onEdit?: (rule: Rule) => void;
+}
+
+export function RuleList({ onEdit }: RuleListProps = {}) {
   const { rules, toggleRule, deleteRule } = useRuleStore();
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
 
@@ -114,7 +118,10 @@ export function RuleList() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setSelectedRuleId(rule.rule_id)}
+                onClick={() => {
+                  setSelectedRuleId(rule.rule_id);
+                  onEdit?.(rule);
+                }}
               >
                 <Edit className="h-4 w-4" />
               </Button>
