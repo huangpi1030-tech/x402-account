@@ -2,17 +2,27 @@
  * PDF 报表模板组件
  * 对应 PRD 第 11.2 节：月度 Statement PDF + 单笔 Receipt PDF
  * 使用 @react-pdf/renderer
+ * 
+ * 注意：@react-pdf/renderer 默认不支持中文，需要配置中文字体
+ * 解决方案：
+ * 1. 下载中文字体文件（如 Noto Sans SC）到 public/fonts/ 目录
+ * 2. 使用 Font.register() 注册字体
+ * 3. 在样式中使用注册的字体族名
+ * 
+ * 当前使用 Helvetica 作为基础字体，中文可能显示为方块
+ * 临时解决方案：使用英文标签或拼音，或等待中文字体配置
  */
 
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Document,
   Page,
   Text,
   View,
   StyleSheet,
+  Font,
 } from "@react-pdf/renderer";
 import {
   MonthlyStatement,
@@ -21,13 +31,74 @@ import {
 } from "@/types";
 
 /**
+ * 注册中文字体
+ * 支持方案：
+ * 1. 使用本地字体文件（推荐）：将字体文件放到 public/fonts/ 目录
+ * 2. 使用在线字体 URL：从 CDN 加载字体
+ */
+let fontRegistered = false;
+
+const registerChineseFont = () => {
+  if (fontRegistered) return;
+
+  try {
+    // 方案一：使用本地字体文件（如果存在）
+    // 注意：需要将字体文件放到 public/fonts/ 目录
+    Font.register({
+      family: "NotoSansSC",
+      fonts: [
+        {
+          src: "/fonts/NotoSansSC-Regular.ttf",
+          fontWeight: "normal",
+        },
+        {
+          src: "/fonts/NotoSansSC-Bold.ttf",
+          fontWeight: "bold",
+        },
+      ],
+    });
+    fontRegistered = true;
+    console.log("中文字体注册成功（本地文件）");
+  } catch (error) {
+    // 方案二：如果本地文件不存在，尝试使用在线字体
+    try {
+      Font.register({
+        family: "NotoSansSC",
+        fonts: [
+          {
+            src: "https://fonts.gstatic.com/s/notosanssc/v36/k3kCo84MPvpLmixcA63oeALhLp0Tszw.woff2",
+            fontWeight: "normal",
+          },
+          {
+            src: "https://fonts.gstatic.com/s/notosanssc/v36/k3kPo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnY8.woff2",
+            fontWeight: "bold",
+          },
+        ],
+      });
+      fontRegistered = true;
+      console.log("中文字体注册成功（在线字体）");
+    } catch (onlineError) {
+      console.warn("中文字体注册失败，将使用默认字体（中文可能显示为方块）", onlineError);
+    }
+  }
+};
+
+// 在组件加载时注册字体
+if (typeof window !== "undefined") {
+  registerChineseFont();
+}
+
+/**
  * PDF 样式定义
+ * 使用 NotoSansSC 字体支持中文显示
+ * 如果字体未注册，会回退到 Helvetica（中文可能显示为方块）
  */
 const styles = StyleSheet.create({
   page: {
     padding: 40,
     fontSize: 10,
-    fontFamily: "Helvetica",
+    fontFamily: "NotoSansSC", // 使用中文字体
+    // 如果字体未注册，会回退到系统默认字体
   },
   title: {
     fontSize: 20,
@@ -71,6 +142,16 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 5,
   },
+  transactionRow: {
+    flexDirection: "row",
+    borderBottom: "1pt solid #eee",
+    paddingVertical: 4,
+    fontSize: 9,
+  },
+  transactionCell: {
+    flex: 1,
+    paddingHorizontal: 3,
+  },
 });
 
 /**
@@ -84,24 +165,26 @@ export const MonthlyStatementPDF = ({
 }) => (
   <Document>
     <Page size="A4" style={styles.page}>
-      {/* 标题 */}
-      <Text style={styles.title}>月度对账报表 - {statement.month}</Text>
+      {/* 标题 - 使用英文避免乱码 */}
+      <Text style={styles.title}>
+        Monthly Statement - {statement.month}
+      </Text>
 
       {/* Executive Summary */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>执行摘要</Text>
+        <Text style={styles.sectionTitle}>Executive Summary</Text>
         <View style={styles.row}>
-          <Text style={styles.label}>总支出 (USDC):</Text>
+          <Text style={styles.label}>Total USDC:</Text>
           <Text style={styles.value}>{statement.executive_summary.total_usdc}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>总支出 (法币):</Text>
+          <Text style={styles.label}>Total Fiat:</Text>
           <Text style={styles.value}>
             {statement.executive_summary.total_fiat} {statement.fx_currency}
           </Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>漏抓率:</Text>
+          <Text style={styles.label}>Gap Rate:</Text>
           <Text style={styles.value}>
             {(statement.executive_summary.gap_rate * 100).toFixed(2)}%
           </Text>
@@ -148,12 +231,12 @@ export const MonthlyStatementPDF = ({
 
       {/* Vendor Breakdown */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>商户汇总</Text>
+        <Text style={styles.sectionTitle}>Vendor Breakdown</Text>
         <View style={styles.table}>
           <View style={[styles.tableRow, styles.tableHeader]}>
-            <Text style={styles.tableCell}>商户</Text>
-            <Text style={styles.tableCell}>总金额</Text>
-            <Text style={styles.tableCell}>笔数</Text>
+            <Text style={styles.tableCell}>Vendor</Text>
+            <Text style={styles.tableCell}>Total</Text>
+            <Text style={styles.tableCell}>Count</Text>
           </View>
           {statement.vendor_breakdown.slice(0, 10).map((vendor, idx) => (
             <View key={idx} style={styles.tableRow}>
@@ -168,11 +251,11 @@ export const MonthlyStatementPDF = ({
       {/* Exceptions */}
       {statement.exceptions.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>异常项</Text>
+          <Text style={styles.sectionTitle}>Exceptions</Text>
           {statement.exceptions.map((exc, idx) => (
             <View key={idx} style={styles.row}>
               <Text style={styles.label}>{exc.reason}:</Text>
-              <Text style={styles.value}>{exc.count} 笔</Text>
+              <Text style={styles.value}>{exc.count} items</Text>
             </View>
           ))}
         </View>
@@ -181,9 +264,9 @@ export const MonthlyStatementPDF = ({
       {/* Gap Analysis */}
       {statement.gap_analysis.suspicious_expenses.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>未识别支出预警</Text>
+          <Text style={styles.sectionTitle}>Suspicious Expenses Alert</Text>
           <Text style={styles.value}>
-            发现 {statement.gap_analysis.suspicious_expenses.length} 笔未捕获的链上支出
+            Found {statement.gap_analysis.suspicious_expenses.length} uncaptured on-chain expenses
           </Text>
         </View>
       )}
@@ -191,7 +274,105 @@ export const MonthlyStatementPDF = ({
       {/* 页脚 */}
       <View style={[styles.section, { marginTop: 30 }]}>
         <Text style={styles.value}>
-          规则版本: {statement.rule_version} | FX 口径: {statement.fx_currency} | 生成时间: {new Date(statement.generated_at).toLocaleString("zh-CN")}
+          Rule Version: {statement.rule_version} | FX Currency: {statement.fx_currency} | Generated: {new Date(statement.generated_at).toLocaleString("en-US")}
+        </Text>
+      </View>
+    </Page>
+  </Document>
+);
+
+/**
+ * 交易明细 PDF 模板（按时间范围导出所有交易）
+ * 类似银行月账单，每一笔交易都清晰列出
+ */
+export const TransactionListPDF = ({
+  transactions,
+  title = "Transaction List",
+  startDate,
+  endDate,
+}: {
+  transactions: CanonicalRecord[];
+  title?: string;
+  startDate?: string;
+  endDate?: string;
+}) => (
+  <Document>
+    <Page size="A4" style={styles.page}>
+      {/* 标题 */}
+      <Text style={styles.title}>
+        {title}
+        {startDate && endDate && ` (${startDate} to ${endDate})`}
+      </Text>
+
+      {/* 统计信息 */}
+      <View style={styles.section}>
+        <View style={styles.row}>
+          <Text style={styles.label}>Total Transactions:</Text>
+          <Text style={styles.value}>{transactions.length}</Text>
+        </View>
+        {startDate && (
+          <View style={styles.row}>
+            <Text style={styles.label}>Start Date:</Text>
+            <Text style={styles.value}>{startDate}</Text>
+          </View>
+        )}
+        {endDate && (
+          <View style={styles.row}>
+            <Text style={styles.label}>End Date:</Text>
+            <Text style={styles.value}>{endDate}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* 交易明细表格 */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Transaction Details</Text>
+        <View style={styles.table}>
+          {/* 表头 */}
+          <View style={[styles.tableRow, styles.tableHeader]}>
+            <Text style={[styles.transactionCell, { flex: 0.5 }]}>Date</Text>
+            <Text style={[styles.transactionCell, { flex: 1.5 }]}>Merchant</Text>
+            <Text style={[styles.transactionCell, { flex: 1 }]}>Amount</Text>
+            <Text style={[styles.transactionCell, { flex: 0.8 }]}>Asset</Text>
+            <Text style={[styles.transactionCell, { flex: 0.7 }]}>Status</Text>
+            <Text style={[styles.transactionCell, { flex: 1 }]}>Category</Text>
+          </View>
+          {/* 交易行 */}
+          {transactions.map((tx, idx) => (
+            <View key={tx.event_id || idx} style={styles.transactionRow}>
+              <Text style={[styles.transactionCell, { flex: 0.5 }]}>
+                {tx.paid_at
+                  ? new Date(tx.paid_at).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                    })
+                  : "-"}
+              </Text>
+              <Text style={[styles.transactionCell, { flex: 1.5 }]}>
+                {tx.merchant_domain || "-"}
+              </Text>
+              <Text style={[styles.transactionCell, { flex: 1 }]}>
+                {tx.amount_decimal_str}
+              </Text>
+              <Text style={[styles.transactionCell, { flex: 0.8 }]}>
+                {tx.asset_symbol}
+              </Text>
+              <Text style={[styles.transactionCell, { flex: 0.7 }]}>
+                {tx.status}
+              </Text>
+              <Text style={[styles.transactionCell, { flex: 1 }]}>
+                {tx.category || "-"}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* 页脚 */}
+      <View style={[styles.section, { marginTop: 30 }]}>
+        <Text style={styles.value}>
+          Generated: {new Date().toLocaleString("en-US")}
         </Text>
       </View>
     </Page>
@@ -211,40 +392,40 @@ export const ReceiptPDF = ({
 }) => (
   <Document>
     <Page size="A4" style={styles.page}>
-      <Text style={styles.title}>交易收据</Text>
+      <Text style={styles.title}>Transaction Receipt</Text>
 
       <View style={styles.section}>
         <View style={styles.row}>
-          <Text style={styles.label}>商户:</Text>
+          <Text style={styles.label}>Merchant:</Text>
           <Text style={styles.value}>{transaction.merchant_domain}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>金额:</Text>
+          <Text style={styles.label}>Amount:</Text>
           <Text style={styles.value}>
             {transaction.amount_decimal_str} {transaction.asset_symbol}
           </Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>网络:</Text>
+          <Text style={styles.label}>Network:</Text>
           <Text style={styles.value}>{transaction.network}</Text>
         </View>
         {transaction.tx_hash && (
           <View style={styles.row}>
-            <Text style={styles.label}>交易哈希:</Text>
+            <Text style={styles.label}>Tx Hash:</Text>
             <Text style={styles.value}>{transaction.tx_hash}</Text>
           </View>
         )}
         {transaction.paid_at && (
           <View style={styles.row}>
-            <Text style={styles.label}>支付时间:</Text>
+            <Text style={styles.label}>Paid At:</Text>
             <Text style={styles.value}>
-              {new Date(transaction.paid_at).toLocaleString("zh-CN")}
+              {new Date(transaction.paid_at).toLocaleString("en-US")}
             </Text>
           </View>
         )}
         {transaction.description && (
           <View style={styles.row}>
-            <Text style={styles.label}>描述:</Text>
+            <Text style={styles.label}>Description:</Text>
             <Text style={styles.value}>{transaction.description}</Text>
           </View>
         )}
@@ -252,7 +433,7 @@ export const ReceiptPDF = ({
 
       <View style={[styles.section, { marginTop: 30 }]}>
         <Text style={styles.value}>
-          生成时间: {new Date(receipt.generated_at).toLocaleString("zh-CN")}
+          Generated: {new Date(receipt.generated_at).toLocaleString("en-US")}
         </Text>
       </View>
     </Page>

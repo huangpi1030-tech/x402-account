@@ -8,6 +8,8 @@
 import { ReactNode } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import Breadcrumb from "./Breadcrumb";
+import { ToastContainer } from "./ToastContainer";
 import { useUIStore } from "@/app/store/useUIStore";
 
 interface PageLayoutProps {
@@ -28,9 +30,13 @@ export default function PageLayout({ children }: PageLayoutProps) {
             sidebarOpen ? "lg:ml-64" : "lg:ml-0"
           }`}
         >
-          {children}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <Breadcrumb />
+            {children}
+          </div>
         </main>
       </div>
+      <ToastContainer />
     </div>
   );
 }

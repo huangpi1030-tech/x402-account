@@ -11,6 +11,9 @@ import {
 } from "@/app/lib/formatters";
 import { useTransactionStore } from "@/app/store/useTransactionStore";
 import { EmptyState } from "./ui/EmptyState";
+import { TransactionItemSkeleton } from "./Skeleton";
+import { Pagination } from "./ui/Pagination";
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 /**
  * 交易记录状态徽章组件
@@ -158,18 +161,21 @@ function TransactionItem({
         </div>
 
         {/* 右侧：操作按钮 */}
-        <div className="ml-4 flex items-start space-x-2">
+        <div
+          className="ml-4 flex items-start space-x-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           {transaction.tx_hash && (
-            <button
+            <a
+              href={`https://basescan.org/tx/${transaction.tx_hash}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
               title="查看链上交易"
-              onClick={() => {
-                // 暂时只在控制台输出，后续可跳转到区块链浏览器
-                console.log("查看交易:", truncateHash(transaction.tx_hash));
-              }}
+              onClick={(e) => e.stopPropagation()}
             >
               <ExternalLink className="h-4 w-4" />
-            </button>
+            </a>
           )}
         </div>
       </div>
@@ -191,9 +197,16 @@ export default function TransactionList({
 }: TransactionListProps = {}) {
   const {
     filteredTransactions,
+    paginatedTransactions,
     isLoading,
     error,
     loadTransactions,
+    currentPage,
+    pageSize,
+    setPage,
+    sortField,
+    sortOrder,
+    setSort,
   } = useTransactionStore();
 
   // 组件挂载时加载交易记录
@@ -208,6 +221,66 @@ export default function TransactionList({
         <h2 className="text-lg font-semibold text-gray-900">
           交易记录 ({filteredTransactions.length})
         </h2>
+        {/* 排序按钮 */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setSort("time")}
+            className={`flex items-center space-x-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              sortField === "time"
+                ? "bg-blue-50 text-blue-600"
+                : "text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            <span>时间</span>
+            {sortField === "time" ? (
+              sortOrder === "desc" ? (
+                <ArrowDown className="h-3 w-3" />
+              ) : (
+                <ArrowUp className="h-3 w-3" />
+              )
+            ) : (
+              <ArrowUpDown className="h-3 w-3" />
+            )}
+          </button>
+          <button
+            onClick={() => setSort("amount")}
+            className={`flex items-center space-x-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              sortField === "amount"
+                ? "bg-blue-50 text-blue-600"
+                : "text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            <span>金额</span>
+            {sortField === "amount" ? (
+              sortOrder === "desc" ? (
+                <ArrowDown className="h-3 w-3" />
+              ) : (
+                <ArrowUp className="h-3 w-3" />
+              )
+            ) : (
+              <ArrowUpDown className="h-3 w-3" />
+            )}
+          </button>
+          <button
+            onClick={() => setSort("confidence")}
+            className={`flex items-center space-x-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              sortField === "confidence"
+                ? "bg-blue-50 text-blue-600"
+                : "text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            <span>置信度</span>
+            {sortField === "confidence" ? (
+              sortOrder === "desc" ? (
+                <ArrowDown className="h-3 w-3" />
+              ) : (
+                <ArrowUp className="h-3 w-3" />
+              )
+            ) : (
+              <ArrowUpDown className="h-3 w-3" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* 错误提示 */}
@@ -219,31 +292,47 @@ export default function TransactionList({
 
       {/* 加载状态 */}
       {isLoading && (
-        <div className="text-center py-12">
-          <p className="text-gray-500">加载中...</p>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <TransactionItemSkeleton key={idx} />
+          ))}
         </div>
       )}
 
       {/* 交易列表 */}
       {!isLoading && (
-        <div className="space-y-3">
-          {filteredTransactions.length > 0 ? (
-            filteredTransactions.map((transaction) => (
-              <TransactionItem
-                key={transaction.event_id}
-                transaction={transaction}
-                onClick={() => onTransactionClick?.(transaction.event_id)}
-              />
-            ))
-          ) : (
-            <div className="bg-white border border-gray-200 rounded-lg">
-              <EmptyState
-                title="暂无交易记录"
-                description="没有找到匹配的交易记录，请尝试调整筛选条件"
+        <>
+          <div className="space-y-3">
+            {paginatedTransactions.length > 0 ? (
+              paginatedTransactions.map((transaction) => (
+                <TransactionItem
+                  key={transaction.event_id}
+                  transaction={transaction}
+                  onClick={() => onTransactionClick?.(transaction.event_id)}
+                />
+              ))
+            ) : (
+              <div className="bg-white border border-gray-200 rounded-lg">
+                <EmptyState
+                  title="暂无交易记录"
+                  description="没有找到匹配的交易记录，请尝试调整筛选条件"
+                />
+              </div>
+            )}
+          </div>
+          {/* 分页 */}
+          {filteredTransactions.length > pageSize && (
+            <div className="mt-6">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(filteredTransactions.length / pageSize)}
+                pageSize={pageSize}
+                total={filteredTransactions.length}
+                onPageChange={setPage}
               />
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );

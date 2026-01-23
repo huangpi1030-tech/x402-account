@@ -86,7 +86,7 @@ export default function OnboardingPage() {
 
   return (
     <PageLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">欢迎使用 X402 Account</h1>
           <p className="text-gray-600">请完成以下步骤以开始使用</p>

@@ -13,7 +13,7 @@ import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 import { useUIStore } from "@/app/store/useUIStore";
 import { generateMonthlyStatement, exportToCSV } from "@/app/lib/reports";
-import { MonthlyStatementPDF } from "../PDFTemplates";
+import { MonthlyStatementPDF, TransactionListPDF } from "../PDFTemplates";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import { FileText, Download, Loader2 } from "lucide-react";
 
@@ -26,6 +26,7 @@ export function ReportGenerator() {
   const [walletAddress, setWalletAddress] = useState("");
   const [generatedStatement, setGeneratedStatement] = useState<any>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [transactions, setTransactions] = useState<any[]>([]);
 
   const { setSuccessMessage, setError } = useUIStore();
 
@@ -58,7 +59,12 @@ export function ReportGenerator() {
         walletAddress || undefined
       );
 
+      // 获取该时间范围内的所有交易记录（用于明细PDF）
+      const { getCanonicalByTimeRange } = await import("@/app/lib/storage");
+      const txList = await getCanonicalByTimeRange(startDate, endDate);
+
       setGeneratedStatement(statement);
+      setTransactions(txList);
       setSuccessMessage("报表生成成功");
       setIsPreviewOpen(true);
     } catch (error) {
@@ -177,15 +183,33 @@ export function ReportGenerator() {
                   <Download className="h-4 w-4 mr-2" />
                   导出 CSV
                 </Button>
-                {generatedStatement && (
+                <PDFDownloadLink
+                  document={<MonthlyStatementPDF statement={generatedStatement} />}
+                  fileName={`statement_${generatedStatement.month}.pdf`}
+                >
+                  {({ loading }) => (
+                    <Button variant="secondary" disabled={loading}>
+                      <Download className="h-4 w-4 mr-2" />
+                      {loading ? "准备中..." : "下载汇总 PDF"}
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+                {transactions.length > 0 && (
                   <PDFDownloadLink
-                    document={<MonthlyStatementPDF statement={generatedStatement} />}
-                    fileName={`statement_${generatedStatement.month}.pdf`}
+                    document={
+                      <TransactionListPDF
+                        transactions={transactions}
+                        title="Transaction Statement"
+                        startDate={startDate}
+                        endDate={endDate}
+                      />
+                    }
+                    fileName={`transactions_${startDate.replace(/-/g, "")}_${endDate.replace(/-/g, "")}.pdf`}
                   >
                     {({ loading }) => (
                       <Button variant="secondary" disabled={loading}>
                         <Download className="h-4 w-4 mr-2" />
-                        {loading ? "准备中..." : "下载 PDF"}
+                        {loading ? "准备中..." : "下载明细 PDF"}
                       </Button>
                     )}
                   </PDFDownloadLink>

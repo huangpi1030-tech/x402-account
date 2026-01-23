@@ -64,7 +64,7 @@ export default function SettingsPage() {
 
   return (
     <PageLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">设置</h1>
           <p className="text-gray-600 mt-1">管理应用设置和安全选项</p>

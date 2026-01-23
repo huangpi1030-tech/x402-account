@@ -16,3 +16,4 @@ export * from "./ReportDownloadHistory";
 export * from "./GapAnalysisView";
 export * from "./AuditLogViewer";
 export * from "./AuditLogFilter";
+export * from "./BulkExport";

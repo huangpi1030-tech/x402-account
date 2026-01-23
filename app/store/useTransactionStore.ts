@@ -28,12 +28,18 @@ interface TransactionFilters {
   network?: string;
 }
 
+type SortField = "time" | "amount" | "confidence";
+type SortOrder = "asc" | "desc";
+
 interface TransactionStore {
   // 状态
   transactions: CanonicalRecord[];
   filteredTransactions: CanonicalRecord[];
+  paginatedTransactions: CanonicalRecord[];
   selectedTransactionId: UUID | null;
   filters: TransactionFilters;
+  sortField: SortField | null;
+  sortOrder: SortOrder;
   isLoading: boolean;
   error: string | null;
   currentPage: number;
@@ -45,6 +51,7 @@ interface TransactionStore {
   saveTransaction: (transaction: CanonicalRecord) => Promise<void>;
   setFilters: (filters: Partial<TransactionFilters>) => void;
   applyFilters: () => void;
+  setSort: (field: SortField | null, order?: SortOrder) => void;
   setSelectedTransaction: (eventId: UUID | null) => void;
   setPage: (page: number) => void;
   clearError: () => void;
@@ -54,8 +61,11 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
   // 初始状态
   transactions: [],
   filteredTransactions: [],
+  paginatedTransactions: [],
   selectedTransactionId: null,
   filters: {},
+  sortField: "time" as SortField,
+  sortOrder: "desc" as SortOrder,
   isLoading: false,
   error: null,
   currentPage: 1,
@@ -138,7 +148,17 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
     get().applyFilters();
   },
 
-  // 应用筛选
+  // 设置排序
+  setSort: (field: SortField | null, order?: SortOrder) => {
+    const { sortField, sortOrder } = get();
+    const newField = field;
+    const newOrder =
+      order || (field === sortField && sortOrder === "desc" ? "asc" : "desc");
+    set({ sortField: newField, sortOrder: newOrder });
+    get().applyFilters();
+  },
+
+  // 应用筛选和排序
   applyFilters: () => {
     const { transactions, filters } = get();
     let filtered = [...transactions];
@@ -191,7 +211,57 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
       );
     }
 
-    set({ filteredTransactions: filtered, currentPage: 1 });
+    // 置信度筛选
+    if (filters.confidence) {
+      filtered = filtered.filter((tx) => {
+        const conf = tx.confidence ?? 100;
+        if (filters.confidence === "high") return conf >= 80;
+        if (filters.confidence === "medium") return conf >= 60 && conf < 80;
+        if (filters.confidence === "low") return conf < 60;
+        return true;
+      });
+    }
+
+    // 网络筛选
+    if (filters.network) {
+      filtered = filtered.filter((tx) => tx.network === filters.network);
+    }
+
+    // 排序
+    const { sortField, sortOrder } = get();
+    if (sortField) {
+      filtered.sort((a, b) => {
+        let aVal: any;
+        let bVal: any;
+
+        if (sortField === "time") {
+          aVal = a.paid_at || a.created_at || "";
+          bVal = b.paid_at || b.created_at || "";
+        } else if (sortField === "amount") {
+          aVal = parseFloat(a.amount_decimal_str);
+          bVal = parseFloat(b.amount_decimal_str);
+        } else if (sortField === "confidence") {
+          aVal = a.confidence ?? 100;
+          bVal = b.confidence ?? 100;
+        }
+
+        if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    // 分页
+    const { currentPage, pageSize } = get();
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    const paginated = filtered.slice(start, end);
+
+    set({
+      filteredTransactions: filtered,
+      paginatedTransactions: paginated,
+      currentPage: 1, // 重置到第一页
+    });
   },
 
   // 设置选中的交易记录
@@ -202,6 +272,7 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
   // 设置页码
   setPage: (page: number) => {
     set({ currentPage: page });
+    get().applyFilters();
   },
 
   // 清除错误

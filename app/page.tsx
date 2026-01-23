@@ -6,10 +6,11 @@ import PageLayout from "./components/PageLayout";
 import SearchBar from "./components/SearchBar";
 import TransactionList from "./components/TransactionList";
 import { TransactionBulkActions, LowConfidenceQueue, TransactionFilters } from "./components/business";
+import { BulkExport } from "./components/business/BulkExport";
 import { Button } from "./components/ui/Button";
 import { useTransactionStore } from "./store/useTransactionStore";
 import { useUIStore } from "./store/useUIStore";
-import { Filter, AlertTriangle } from "lucide-react";
+import { Filter, AlertTriangle, Download } from "lucide-react";
 
 /**
  * Transactions 页面（主页面）
@@ -19,6 +20,7 @@ export default function Home() {
   const router = useRouter();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [showLowConfidence, setShowLowConfidence] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
   const { transactions, filteredTransactions } = useTransactionStore();
@@ -30,7 +32,7 @@ export default function Home() {
 
   return (
     <PageLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div>
         {/* 页面标题和操作 */}
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -40,6 +42,13 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center space-x-2">
+            <Button
+              variant="secondary"
+              onClick={() => setIsExportOpen(true)}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              批量导出
+            </Button>
             <Button
               variant="secondary"
               onClick={() => setIsFilterOpen(true)}
@@ -81,13 +90,19 @@ export default function Home() {
 
         {/* 交易列表 */}
         <TransactionList onTransactionClick={handleTransactionClick} />
-      </div>
 
-      {/* 高级筛选面板 */}
-      <TransactionFilters
-        isOpen={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
-      />
+        {/* 高级筛选面板 */}
+        <TransactionFilters
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+        />
+
+        {/* 批量导出面板 */}
+        <BulkExport
+          isOpen={isExportOpen}
+          onClose={() => setIsExportOpen(false)}
+        />
+      </div>
     </PageLayout>
   );
 }
