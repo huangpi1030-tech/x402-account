@@ -214,6 +214,20 @@ export default function TransactionList({
     loadTransactions();
   }, [loadTransactions]);
 
+  // 监听来自浏览器扩展的数据更新事件
+  useEffect(() => {
+    const handleDataUpdate = () => {
+      loadTransactions();
+    };
+    
+    // 监听扩展发送的自定义事件
+    window.addEventListener('x402-data-updated', handleDataUpdate);
+    
+    return () => {
+      window.removeEventListener('x402-data-updated', handleDataUpdate);
+    };
+  }, [loadTransactions]);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* 列表标题和统计 */}
@@ -312,11 +326,32 @@ export default function TransactionList({
                 />
               ))
             ) : (
-              <div className="bg-white border border-gray-200 rounded-lg">
-                <EmptyState
-                  title="暂无交易记录"
-                  description="没有找到匹配的交易记录，请尝试调整筛选条件"
-                />
+              <div className="bg-white border border-gray-200 rounded-lg p-8">
+                <div className="text-center">
+                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-4">
+                    <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">暂无交易记录</h3>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    要开始捕获 X402 支付数据，请安装并启用浏览器扩展。
+                  </p>
+                  <div className="bg-gray-50 rounded-lg p-4 text-left max-w-lg mx-auto">
+                    <h4 className="font-medium text-gray-900 mb-3">快速开始：</h4>
+                    <ol className="text-sm text-gray-600 space-y-2 list-decimal list-inside">
+                      <li>打开项目中的 <code className="bg-gray-200 px-1 rounded">extension</code> 文件夹</li>
+                      <li>访问 <code className="bg-gray-200 px-1 rounded">chrome://extensions/</code></li>
+                      <li>开启「开发者模式」</li>
+                      <li>点击「加载已解压的扩展程序」</li>
+                      <li>选择 <code className="bg-gray-200 px-1 rounded">extension</code> 文件夹</li>
+                      <li>访问支持 X402 的网站，数据将自动捕获</li>
+                    </ol>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-4">
+                    扩展会自动检测 HTTP 请求中的 x-402-* headers 并记录支付数据
+                  </p>
+                </div>
               </div>
             )}
           </div>

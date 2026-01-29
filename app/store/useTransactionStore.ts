@@ -16,7 +16,6 @@ import {
   initIndexedDB,
 } from "@/app/lib/storage";
 import { filtersStorage } from "@/app/lib/storage/localStorage";
-import { generateMockTransactions } from "@/app/lib/mockData";
 
 interface TransactionFilters {
   status?: TransactionStatus;
@@ -86,20 +85,8 @@ export const useTransactionStore = create<TransactionStore>((set, get) => {
       // 初始化 IndexedDB
       await initIndexedDB();
       
-      // 从 IndexedDB 加载数据
-      let transactions = await getAllCanonical();
-      
-      // 如果 IndexedDB 为空，初始化 Mock 数据
-      if (transactions.length === 0) {
-        const mockTransactions = generateMockTransactions();
-        
-        // 保存 Mock 数据到 IndexedDB
-        for (const transaction of mockTransactions) {
-          await saveCanonical(transaction);
-        }
-        
-        transactions = mockTransactions;
-      }
+      // 从 IndexedDB 加载真实数据（不再自动填充 mock 数据）
+      const transactions = await getAllCanonical();
       
       set({ transactions, filteredTransactions: transactions, isLoading: false });
       // 自动应用筛选

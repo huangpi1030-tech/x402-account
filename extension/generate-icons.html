@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>生成扩展图标</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+    h1 { color: #1e293b; }
+    .icon-container {
+      display: flex;
+      gap: 20px;
+      margin: 20px 0;
+      align-items: flex-end;
+    }
+    .icon-item {
+      text-align: center;
+    }
+    .icon-item canvas {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+    }
+    .icon-item p {
+      margin: 8px 0 0;
+      font-size: 12px;
+      color: #64748b;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    .instructions {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 20px;
+    }
+    .instructions ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .instructions li {
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>X402 Account Extension 图标生成器</h1>
+  
+  <div class="icon-container">
+    <div class="icon-item">
+      <canvas id="icon16" width="16" height="16"></canvas>
+      <p>16x16</p>
+    </div>
+    <div class="icon-item">
+      <canvas id="icon48" width="48" height="48"></canvas>
+      <p>48x48</p>
+    </div>
+    <div class="icon-item">
+      <canvas id="icon128" width="128" height="128"></canvas>
+      <p>128x128</p>
+    </div>
+  </div>
+  
+  <div>
+    <button onclick="downloadIcon(16)">下载 icon16.png</button>
+    <button onclick="downloadIcon(48)">下载 icon48.png</button>
+    <button onclick="downloadIcon(128)">下载 icon128.png</button>
+    <button onclick="downloadAll()">下载全部</button>
+  </div>
+  
+  <div class="instructions">
+    <h3>使用说明</h3>
+    <ol>
+      <li>点击上方按钮下载 PNG 图标文件</li>
+      <li>将下载的文件移动到 <code>extension/icons/</code> 目录</li>
+      <li>确保文件名为 <code>icon16.png</code>、<code>icon48.png</code>、<code>icon128.png</code></li>
+      <li>在 Chrome 扩展管理页面刷新扩展</li>
+    </ol>
+  </div>
+
+  <script>
+    function drawIcon(size) {
+      const canvas = document.getElementById('icon' + size);
+      const ctx = canvas.getContext('2d');
+      
+      // 背景
+      const radius = size * 0.15;
+      ctx.fillStyle = '#3b82f6';
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, radius);
+      ctx.fill();
+      
+      // 文字
+      ctx.fillStyle = 'white';
+      ctx.font = `bold ${size * 0.4}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('402', size / 2, size / 2 + size * 0.05);
+    }
+    
+    function downloadIcon(size) {
+      const canvas = document.getElementById('icon' + size);
+      const link = document.createElement('a');
+      link.download = 'icon' + size + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+    
+    function downloadAll() {
+      downloadIcon(16);
+      setTimeout(() => downloadIcon(48), 100);
+      setTimeout(() => downloadIcon(128), 200);
+    }
+    
+    // 初始化绘制
+    drawIcon(16);
+    drawIcon(48);
+    drawIcon(128);
+  </script>
+</body>
+</html>
