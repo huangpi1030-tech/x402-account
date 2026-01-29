@@ -307,7 +307,15 @@ function parseX402Data(url, method, requestHeaders, responseHeaders, statusCode)
     authParams['payment-id'];
 
   // 如果没有关键支付信息且也不是 402，则跳过
+  // 如果没有关键支付信息，跳过
   if (!recipient && !amount && !payment && statusCode !== 402) {
+    return null;
+  }
+
+  // 解析金额
+  const decimals = 6; // 默认 USDC 精度
+  const { amountBaseUnits, amountDecimal } = parseAmount(amount, decimals);
+  if (statusCode === 402 && !recipient && !amount && !payment) {
     return null;
   }
 
@@ -378,6 +386,7 @@ function parseX402Data(url, method, requestHeaders, responseHeaders, statusCode)
     // 状态机与置信度字段
     status: status,
     confidence: txHash || receipt ? 90 : (payment ? 80 : (recipient && amount ? 70 : (statusCode === 402 ? 40 : 50))),
+    confidence: txHash || receipt ? 90 : (payment ? 80 : (recipient && amount ? 70 : 50)),
 
     // 元数据字段
     created_at: now,
