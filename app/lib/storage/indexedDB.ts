@@ -286,6 +286,5 @@ export async function migrateDatabase(
   newVersion: number
 ): Promise<void> {
   // 这里可以实现数据迁移逻辑
-  console.log(`数据库迁移: ${oldVersion} -> ${newVersion}`);
   // 实际迁移逻辑根据需求实现
 }

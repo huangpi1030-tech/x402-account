@@ -80,7 +80,7 @@ export function AuditLogViewer({
 
       setLogs(filtered);
     } catch (error) {
-      console.error("加载审计日志失败:", error);
+      // 加载失败，静默处理
     } finally {
       setIsLoading(false);
     }

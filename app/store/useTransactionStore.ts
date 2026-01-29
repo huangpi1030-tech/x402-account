@@ -91,7 +91,6 @@ export const useTransactionStore = create<TransactionStore>((set, get) => {
       
       // 如果 IndexedDB 为空，初始化 Mock 数据
       if (transactions.length === 0) {
-        console.log("IndexedDB 为空，初始化 Mock 数据...");
         const mockTransactions = generateMockTransactions();
         
         // 保存 Mock 数据到 IndexedDB
@@ -100,14 +99,12 @@ export const useTransactionStore = create<TransactionStore>((set, get) => {
         }
         
         transactions = mockTransactions;
-        console.log(`已初始化 ${transactions.length} 条 Mock 交易记录`);
       }
       
       set({ transactions, filteredTransactions: transactions, isLoading: false });
       // 自动应用筛选
       get().applyFilters();
     } catch (error) {
-      console.error("加载交易记录失败:", error);
       set({
         error: error instanceof Error ? error.message : "加载交易记录失败",
         isLoading: false,

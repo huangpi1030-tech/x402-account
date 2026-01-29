@@ -57,7 +57,6 @@ async function withRetry<T>(
     if (attempt < config.maxRetries) {
       const delay = config.retryDelay * Math.pow(config.backoffMultiplier, attempt);
       await new Promise((resolve) => setTimeout(resolve, delay));
-      console.log(`[Sync] 重试 ${attempt + 1}/${config.maxRetries}，延迟 ${delay}ms`);
     }
   }
 
@@ -77,13 +76,11 @@ export async function idempotentWriteCanonical(
 
     if (existing) {
       // 记录已存在，幂等跳过
-      console.log(`[Sync] 记录已存在（幂等跳过）: ${record.event_id}`);
       return { success: true, skipped: true };
     }
 
     // 保存新记录
     await saveCanonical(record);
-    console.log(`[Sync] 保存新记录: ${record.event_id}`);
     return { success: true, skipped: false };
   } catch (error) {
     return {
@@ -199,14 +196,8 @@ export async function resolveConflict(
   const incomingTime = new Date(incoming.updated_at).getTime();
 
   if (incomingTime > existingTime) {
-    console.log(
-      `[Sync] 冲突解决：使用新记录（${incoming.updated_at} > ${existing.updated_at}）`
-    );
     return incoming;
   } else {
-    console.log(
-      `[Sync] 冲突解决：保留现有记录（${existing.updated_at} >= ${incoming.updated_at}）`
-    );
     return existing;
   }
 }

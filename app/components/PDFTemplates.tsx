@@ -58,7 +58,6 @@ const registerChineseFont = () => {
       ],
     });
     fontRegistered = true;
-    console.log("中文字体注册成功（本地文件）");
   } catch (error) {
     // 方案二：如果本地文件不存在，尝试使用在线字体
     try {
@@ -76,9 +75,8 @@ const registerChineseFont = () => {
         ],
       });
       fontRegistered = true;
-      console.log("中文字体注册成功（在线字体）");
     } catch (onlineError) {
-      console.warn("中文字体注册失败，将使用默认字体（中文可能显示为方块）", onlineError);
+      // 字体注册失败，使用默认字体
     }
   }
 };

@@ -5,17 +5,26 @@
 
 "use client";
 
+// React
 import { useState } from "react";
+
+// Third-party
+import { Download, Trash2, Shield, Key, Globe, Loader2 } from "lucide-react";
+
+// Components
 import PageLayout from "../components/PageLayout";
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
+
+// Store
 import { useConfigStore } from "../store/useConfigStore";
 import { useUIStore } from "../store/useUIStore";
+
+// Lib
 import { exportToCSV } from "../lib/reports";
 import { getAllCanonical } from "../lib/storage";
-import { Download, Trash2, Shield, Key, Globe, Loader2 } from "lucide-react";
 
 export default function SettingsPage() {
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);

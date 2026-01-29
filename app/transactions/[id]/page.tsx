@@ -5,26 +5,37 @@
 
 "use client";
 
+// React & Next.js
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+
+// Third-party
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { ArrowLeft, Edit, FileText, Download, History, Loader2, AlertCircle } from "lucide-react";
+
+// Types
+import { CanonicalRecord, RuleMatchResult, TransactionStatus } from "@/types";
+
+// Components
 import PageLayout from "../../components/PageLayout";
+import { Skeleton } from "../../components/Skeleton";
+import { ReceiptPDF } from "../../components/PDFTemplates";
 import { Button } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
 import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { RuleMatchExplanation, AuditLogViewer } from "../../components/business";
 import { TransactionDetailModal } from "../../components/business/TransactionDetailModal";
+
+// Store
 import { useTransactionStore } from "../../store/useTransactionStore";
 import { useRuleStore } from "../../store/useRuleStore";
+import { useUIStore } from "../../store/useUIStore";
+
+// Lib
 import { explainRuleMatch } from "../../lib/rules";
 import { recordAuditLog } from "../../lib/governance";
-import { ReceiptPDF } from "../../components/PDFTemplates";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import { CanonicalRecord, RuleMatchResult, TransactionStatus } from "@/types";
-import { ArrowLeft, Edit, FileText, Download, History, Loader2, AlertCircle } from "lucide-react";
 import { formatDateTime } from "../../lib/formatters";
-import { Skeleton } from "../../components/Skeleton";
-import { useUIStore } from "../../store/useUIStore";
 
 export default function TransactionDetailPage() {
   const params = useParams();

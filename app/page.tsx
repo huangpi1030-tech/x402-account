@@ -1,16 +1,23 @@
 "use client";
 
+// React & Next.js
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
+// Third-party
+import { Filter, AlertTriangle, Download } from "lucide-react";
+
+// Components
 import PageLayout from "./components/PageLayout";
 import SearchBar from "./components/SearchBar";
 import TransactionList from "./components/TransactionList";
 import { TransactionBulkActions, LowConfidenceQueue, TransactionFilters } from "./components/business";
 import { BulkExport } from "./components/business/BulkExport";
 import { Button } from "./components/ui/Button";
+
+// Store
 import { useTransactionStore } from "./store/useTransactionStore";
 import { useUIStore } from "./store/useUIStore";
-import { Filter, AlertTriangle, Download } from "lucide-react";
 
 /**
  * Transactions 页面（主页面）

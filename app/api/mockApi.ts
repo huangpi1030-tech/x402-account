@@ -69,8 +69,6 @@ export async function syncRawEvidence(
     const synced_count = request.evidence.length;
     const failed_count = 0;
 
-    console.log(`[Mock API] syncRawEvidence: 同步 ${synced_count} 条 RawEvidence`);
-
     return {
       synced_count,
       failed_count,
@@ -92,10 +90,6 @@ export async function syncCanonical(
     const skipped_count = Math.floor(total * 0.2);
     const synced_count = total - skipped_count;
     const failed_count = 0;
-
-    console.log(
-      `[Mock API] syncCanonical: 同步 ${synced_count} 条，跳过 ${skipped_count} 条（幂等）`
-    );
 
     return {
       synced_count,
@@ -150,8 +144,6 @@ export async function fetchAllowlistConfig(): Promise<
       updated_at: new Date().toISOString(),
     };
 
-    console.log("[Mock API] fetchAllowlistConfig: 返回白名单配置");
-
     return {
       config,
       signature: "mock_signature_abc123",
@@ -171,10 +163,6 @@ export async function requestVerify(
     const task_id = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const queued_count = request.event_ids.length;
     const estimated_time = queued_count * 2; // 每条记录预计 2 秒
-
-    console.log(
-      `[Mock API] requestVerify: 创建验证任务 ${task_id}，队列 ${queued_count} 条`
-    );
 
     return {
       task_id,
@@ -197,10 +185,6 @@ export async function getFxSnapshot(
     const baseRate = 1.0;
     const variation = (Math.random() - 0.5) * 0.001; // ±0.05% 波动
     const rate = (baseRate + variation).toFixed(6);
-
-    console.log(
-      `[Mock API] getFxSnapshot: ${request.from_currency} → ${request.to_currency} = ${rate}`
-    );
 
     return {
       rate,

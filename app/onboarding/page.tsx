@@ -5,17 +5,24 @@
 
 "use client";
 
+// React & Next.js
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+
+// Third-party
+import { CheckCircle2, Wallet, DollarSign, Server, Loader2, AlertCircle } from "lucide-react";
+
+// Components
 import PageLayout from "../components/PageLayout";
+import { Skeleton } from "../components/Skeleton";
 import { WalletBindingForm, WalletList } from "../components/business";
 import { Select } from "../components/ui/Select";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
-import { Skeleton } from "../components/Skeleton";
+
+// Store
 import { useConfigStore } from "../store/useConfigStore";
 import { useUIStore } from "../store/useUIStore";
-import { CheckCircle2, Wallet, DollarSign, Server, Loader2, AlertCircle } from "lucide-react";
 
 export default function OnboardingPage() {
   const router = useRouter();

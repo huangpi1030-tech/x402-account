@@ -5,16 +5,25 @@
 
 "use client";
 
+// React
 import { useEffect, useState } from "react";
+
+// Third-party
+import { Plus, AlertCircle } from "lucide-react";
+
+// Types
+import { Rule } from "@/types";
+
+// Components
 import PageLayout from "../components/PageLayout";
+import { Skeleton } from "../components/Skeleton";
 import { RuleList, RuleEditor } from "../components/business";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
-import { Skeleton } from "../components/Skeleton";
+
+// Store
 import { useRuleStore } from "../store/useRuleStore";
 import { useUIStore } from "../store/useUIStore";
-import { Rule } from "@/types";
-import { Plus, AlertCircle } from "lucide-react";
 
 export default function RulesPage() {
   const { rules, isLoading, error, loadRules, addRule, updateRule } = useRuleStore();

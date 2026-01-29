@@ -5,7 +5,13 @@
 
 "use client";
 
+// React
 import { useState } from "react";
+
+// Third-party
+import { FileText, Download, AlertTriangle } from "lucide-react";
+
+// Components
 import PageLayout from "../components/PageLayout";
 import {
   ReportGenerator,
@@ -13,7 +19,6 @@ import {
   GapAnalysisView,
 } from "../components/business";
 import { Button } from "../components/ui/Button";
-import { FileText, Download, AlertTriangle } from "lucide-react";
 
 type TabType = "generate" | "history" | "gap";
 

@@ -36,7 +36,6 @@ export async function captureFxSnapshot(
 
     return null;
   } catch (error) {
-    console.error("获取 FX Snapshot 失败:", error);
     return null;
   }
 }

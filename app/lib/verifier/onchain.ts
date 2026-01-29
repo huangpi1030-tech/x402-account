@@ -50,7 +50,6 @@ export async function verifyTxHash(
   const cacheKey = `tx_${txHash}`;
   const cached = verificationCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < cached.ttl) {
-    console.log(`[Verifier] 使用缓存结果: ${txHash}`);
     return cached.result;
   }
 

@@ -37,9 +37,7 @@ export async function recordAuditLog(
 
   try {
     await saveAuditLog(auditLog);
-    console.log(`[Audit] 记录审计日志: ${operationType} on ${resourceType}:${resourceId}`);
   } catch (error) {
-    console.error("保存审计日志失败:", error);
     throw error;
   }
 }
@@ -53,7 +51,6 @@ export async function queryAuditLogs(
   try {
     return await getAuditLogsByResourceId(resourceId);
   } catch (error) {
-    console.error("查询审计日志失败:", error);
     return [];
   }
 }

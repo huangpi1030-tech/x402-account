@@ -5,18 +5,29 @@
 
 "use client";
 
+// React
 import { useState, useEffect } from "react";
+
+// Third-party
 import { AlertTriangle, ExternalLink, CheckCircle2 } from "lucide-react";
+
+// Types
 import { GapAnalysis, SuspiciousExpense } from "@/types";
-import { generateGapAnalysis } from "@/app/lib/gapAnalysis";
+
+// Components
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { DateRangePicker } from "../ui/DateRangePicker";
 import { AddressDisplay } from "../ui/AddressDisplay";
 import { HashDisplay } from "../ui/HashDisplay";
-import { formatAmountDisplay, formatDateTime } from "@/app/lib/formatters";
+
+// Store
 import { useConfigStore } from "@/app/store/useConfigStore";
 import { useUIStore } from "@/app/store/useUIStore";
+
+// Lib
+import { generateGapAnalysis } from "@/app/lib/gapAnalysis";
+import { formatAmountDisplay, formatDateTime } from "@/app/lib/formatters";
 
 export function GapAnalysisView() {
   const [walletAddress, setWalletAddress] = useState("");
