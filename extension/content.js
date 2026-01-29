@@ -218,6 +218,7 @@ const injectedScript = `
       window.postMessage({
         type: 'X402_FETCH_DETECTED',
         url: args[0]?.url || args[0],
+        method: args[1]?.method || args[0]?.method || 'GET',
         status: response.status,
         headers: x402Headers
       }, '*');
