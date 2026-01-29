@@ -207,7 +207,7 @@ const injectedScript = `
     
     response.headers.forEach((value, key) => {
       const lowerKey = key.toLowerCase();
-      if (lowerKey.startsWith('x-402') || lowerKey === 'x-payment-required') {
+      if (lowerKey.startsWith('x-402') || lowerKey === 'x-payment-required' || lowerKey === 'www-authenticate') {
         x402Headers[key] = value;
         hasX402 = true;
       }
@@ -218,6 +218,7 @@ const injectedScript = `
       window.postMessage({
         type: 'X402_FETCH_DETECTED',
         url: args[0]?.url || args[0],
+        method: args[1]?.method || args[0]?.method || 'GET',
         status: response.status,
         headers: x402Headers
       }, '*');
@@ -236,10 +237,33 @@ const injectedScript = `
     return originalXHROpen.apply(this, [method, url, ...args]);
   };
   
+  function parseHeaderString(headerString) {
+    const headers = {};
+    if (!headerString) return headers;
+    headerString.trim().split(/\\r?\\n/).forEach(line => {
+      const parts = line.split(':');
+      if (parts.length >= 2) {
+        const key = parts.shift().trim();
+        const value = parts.join(':').trim();
+        headers[key] = value;
+      }
+    });
+    return headers;
+  }
+
   XMLHttpRequest.prototype.send = function(...args) {
     this.addEventListener('load', function() {
-      if (this.status === 402) {
-        const headers = this.getAllResponseHeaders();
+      const headerString = this.getAllResponseHeaders();
+      const headers = parseHeaderString(headerString);
+      let hasX402 = false;
+      Object.keys(headers).forEach(key => {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.startsWith('x-402') || lowerKey === 'x-payment-required' || lowerKey === 'www-authenticate') {
+          hasX402 = true;
+        }
+      });
+
+      if (this.status === 402 || hasX402) {
         window.postMessage({
           type: 'X402_XHR_DETECTED',
           url: this._x402_url,

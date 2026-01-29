@@ -28,6 +28,24 @@ const PAYMENT_RESPONSE_HEADERS = [
   'x-402-payment-id'
 ];
 
+const X402_PARAM_KEYS = [
+  'payto',
+  'recipient',
+  'network',
+  'amount',
+  'asset',
+  'order-id',
+  'order_id',
+  'nonce',
+  'valid-after',
+  'valid-until',
+  'valid_after',
+  'valid_until',
+  'tx-hash',
+  'receipt',
+  'payment-id'
+];
+
 // Web App URL（部署后需要更新）
 const WEB_APP_ORIGIN = 'https://x402-account.vercel.app'; // TODO: 更新为你的实际部署地址
 
@@ -47,8 +65,10 @@ function generateEventId() {
 /**
  * 生成 Persistence ID（用于关联同一支付的多个事件）
  */
-function generatePersistenceId(url, method, recipient, amount) {
-  const data = `${url}|${method}|${recipient}|${amount}|${Math.floor(Date.now() / 86400000)}`;
+function generatePersistenceId(normalizedUrl, method, network, recipient, amountBaseUnits, orderId, nonce, validAfter) {
+  const dayBucket = Math.floor(Date.now() / 86400000);
+  const optionalPart = orderId || nonce || validAfter || '';
+  const data = `${normalizedUrl}|${method}|${network}|${recipient}|${amountBaseUnits}|${optionalPart}|${dayBucket}`;
   // 简单 hash
   let hash = 0;
   for (let i = 0; i < data.length; i++) {
@@ -83,6 +103,112 @@ function parseX402Header(headerValue) {
 }
 
 /**
+ * 标准化 URL（去掉 query/hash 以提升幂等性）
+ */
+function normalizeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * 从 payto 字段中提取地址
+ */
+function extractPayToAddress(paytoValue) {
+  if (!paytoValue) return null;
+  const trimmed = paytoValue.replace(/^payto:/i, '').trim();
+  const parts = trimmed.split(':');
+  return parts[parts.length - 1] || trimmed;
+}
+
+/**
+ * 从 Header 中提取 key=value 参数
+ */
+function parseKeyValueParams(headerValue) {
+  const params = {};
+  if (!headerValue) return params;
+
+  const paramRegex = /([a-zA-Z0-9_-]+)=("([^"]+)"|[^,\s]+)/g;
+  let match;
+  while ((match = paramRegex.exec(headerValue)) !== null) {
+    const key = match[1].toLowerCase();
+    const value = match[3] || match[2];
+    if (X402_PARAM_KEYS.includes(key)) {
+      params[key] = value;
+    }
+  }
+  return params;
+}
+
+/**
+ * 解析 WWW-Authenticate / x-payment-required 中的 x402 参数
+ */
+function parseX402Challenge(headerValue) {
+  if (!headerValue) return {};
+
+  const parsedJson = parseX402Header(headerValue);
+  if (parsedJson && typeof parsedJson === 'object') {
+    return parsedJson;
+  }
+
+  // 只处理包含 x402 的 challenge
+  if (!/x402/i.test(headerValue)) {
+    return {};
+  }
+
+  return parseKeyValueParams(headerValue);
+}
+
+/**
+ * 从 headers 数组构建小写 key 的 map
+ */
+function buildHeaderMap(headers) {
+  const map = new Map();
+  (headers || []).forEach(h => {
+    if (!map.has(h.name.toLowerCase())) {
+      map.set(h.name.toLowerCase(), h.value);
+    }
+  });
+  return map;
+}
+
+/**
+ * 解析金额字符串
+ */
+function parseAmount(amountValue, decimals) {
+  if (!amountValue) {
+    return { amountBaseUnits: '0', amountDecimal: '0' };
+  }
+
+  const amountString = amountValue.toString();
+  const numericMatch = amountString.match(/[0-9]*\.?[0-9]+/);
+  if (!numericMatch) {
+    return { amountBaseUnits: '0', amountDecimal: '0' };
+  }
+
+  const amountNum = parseFloat(numericMatch[0]);
+  if (Number.isNaN(amountNum)) {
+    return { amountBaseUnits: '0', amountDecimal: '0' };
+  }
+
+  if (amountString.includes('.')) {
+    return {
+      amountBaseUnits: Math.round(amountNum * Math.pow(10, decimals)).toString(),
+      amountDecimal: amountNum.toString()
+    };
+  }
+
+  const baseUnits = Math.round(amountNum);
+  return {
+    amountBaseUnits: baseUnits.toString(),
+    amountDecimal: (baseUnits / Math.pow(10, decimals)).toString()
+  };
+}
+
+/**
  * 从 headers 数组中查找指定 header
  */
 function findHeader(headers, name) {
@@ -94,10 +220,16 @@ function findHeader(headers, name) {
  * 检测是否包含 x402 支付相关 header
  */
 function hasX402Headers(headers) {
-  return headers.some(h => 
-    X402_HEADERS.includes(h.name.toLowerCase()) ||
-    PAYMENT_RESPONSE_HEADERS.includes(h.name.toLowerCase())
-  );
+  return headers.some(h => {
+    const headerName = h.name.toLowerCase();
+    if (PAYMENT_RESPONSE_HEADERS.includes(headerName) || X402_HEADERS.includes(headerName)) {
+      if (headerName === 'www-authenticate') {
+        return /x402/i.test(h.value || '');
+      }
+      return true;
+    }
+    return false;
+  });
 }
 
 // ============ 数据解析 ============
@@ -107,63 +239,108 @@ function hasX402Headers(headers) {
  */
 function parseX402Data(url, method, requestHeaders, responseHeaders, statusCode) {
   const allHeaders = [...(requestHeaders || []), ...(responseHeaders || [])];
-  
-  if (!hasX402Headers(allHeaders)) {
+
+  if (statusCode !== 402 && !hasX402Headers(allHeaders)) {
     return null;
   }
 
   const domain = extractDomain(url);
   const now = new Date().toISOString();
+  const headerMap = buildHeaderMap(allHeaders);
+
+  const authHeader = headerMap.get('www-authenticate');
+  const paymentRequiredHeader = headerMap.get('x-payment-required');
+  const authParams = {
+    ...parseX402Challenge(authHeader),
+    ...parseX402Challenge(paymentRequiredHeader)
+  };
 
   // 提取各种 x402 相关字段
   const payment = findHeader(allHeaders, 'x-402-payment');
-  const network = findHeader(allHeaders, 'x-402-network') || 'base';
-  const recipient = findHeader(allHeaders, 'x-402-recipient');
-  const amount = findHeader(allHeaders, 'x-402-amount');
-  const orderId = findHeader(allHeaders, 'x-402-order-id');
-  const nonce = findHeader(allHeaders, 'x-402-nonce');
-  const txHash = findHeader(allHeaders, 'x-402-tx-hash');
-  const receipt = findHeader(allHeaders, 'x-402-receipt');
+  const paymentParsed = payment ? parseX402Header(payment) : null;
+  const receiptHeader = findHeader(allHeaders, 'x-402-receipt');
+  const receiptParsed = receiptHeader ? parseX402Header(receiptHeader) : null;
 
-  // 如果没有关键支付信息，跳过
+  const network =
+    findHeader(allHeaders, 'x-402-network') ||
+    authParams.network ||
+    (paymentParsed && paymentParsed.network) ||
+    'base';
+
+  const recipient =
+    findHeader(allHeaders, 'x-402-recipient') ||
+    authParams.recipient ||
+    extractPayToAddress(authParams.payto) ||
+    (paymentParsed && (paymentParsed.recipient || paymentParsed.payee));
+
+  const amount =
+    findHeader(allHeaders, 'x-402-amount') ||
+    authParams.amount ||
+    (paymentParsed && paymentParsed.amount);
+
+  const orderId =
+    findHeader(allHeaders, 'x-402-order-id') ||
+    authParams['order-id'] ||
+    authParams['order_id'] ||
+    (paymentParsed && paymentParsed.order_id);
+
+  const nonce =
+    findHeader(allHeaders, 'x-402-nonce') ||
+    authParams.nonce ||
+    (paymentParsed && paymentParsed.nonce);
+
+  const validAfter =
+    findHeader(allHeaders, 'x-402-valid-after') ||
+    authParams['valid-after'] ||
+    authParams['valid_after'];
+
+  const txHash =
+    findHeader(allHeaders, 'x-402-tx-hash') ||
+    (receiptParsed && receiptParsed.tx_hash);
+
+  const receipt =
+    receiptHeader ||
+    authParams.receipt;
+
+  const paymentId =
+    findHeader(allHeaders, 'x-402-payment-id') ||
+    authParams['payment-id'];
+
+  // 如果没有关键支付信息且也不是 402，则跳过
   if (!recipient && !amount && !payment && statusCode !== 402) {
     return null;
   }
 
   // 解析金额
-  let amountBaseUnits = '0';
-  let amountDecimal = '0';
-  let decimals = 6; // 默认 USDC 精度
-  
-  if (amount) {
-    // amount 可能是 "0.05" 或 "50000" (base units)
-    const amountNum = parseFloat(amount);
-    if (amountNum < 1000) {
-      // 可能是 decimal 格式
-      amountDecimal = amount;
-      amountBaseUnits = Math.floor(amountNum * Math.pow(10, decimals)).toString();
-    } else {
-      // 可能是 base units
-      amountBaseUnits = amount;
-      amountDecimal = (parseInt(amount) / Math.pow(10, decimals)).toString();
-    }
-  }
+  const decimals = 6; // 默认 USDC 精度
+  const { amountBaseUnits, amountDecimal } = parseAmount(amount, decimals);
 
   // 确定状态
   let status = 'pending';
   if (statusCode === 402) {
     status = 'detected'; // 检测到支付要求
-  } else if (txHash) {
+  } else if (txHash || receipt) {
     status = 'settled'; // 有 tx hash，可能已支付
-  } else if (receipt) {
-    status = 'settled';
+  } else if (payment) {
+    status = 'pending';
   }
 
   // 生成记录
+  const persistenceId = generatePersistenceId(
+    normalizeUrl(url),
+    method,
+    network,
+    recipient || 'unknown',
+    amountBaseUnits,
+    orderId,
+    nonce,
+    validAfter
+  );
+
   const record = {
     // 关联与证据字段
     event_id: generateEventId(),
-    persistence_id: generatePersistenceId(url, method, recipient, amount),
+    persistence_id: persistenceId,
     evidence_ref: `evidence_${Date.now()}`,
     header_hashes_json: JSON.stringify(
       allHeaders
@@ -189,7 +366,7 @@ function parseX402Data(url, method, requestHeaders, responseHeaders, statusCode)
 
     // 链上凭证字段
     tx_hash: txHash || undefined,
-    paid_at: txHash ? now : undefined,
+    paid_at: txHash || receipt ? now : undefined,
 
     // FX 与法币口径字段
     fx_fiat_currency: 'USD',
@@ -200,7 +377,7 @@ function parseX402Data(url, method, requestHeaders, responseHeaders, statusCode)
 
     // 状态机与置信度字段
     status: status,
-    confidence: txHash ? 90 : (recipient && amount ? 70 : 50),
+    confidence: txHash || receipt ? 90 : (payment ? 80 : (recipient && amount ? 70 : (statusCode === 402 ? 40 : 50))),
 
     // 元数据字段
     created_at: now,
@@ -211,6 +388,7 @@ function parseX402Data(url, method, requestHeaders, responseHeaders, statusCode)
       url,
       method,
       statusCode,
+      payment_id: paymentId,
       capturedHeaders: allHeaders.filter(h => 
         X402_HEADERS.includes(h.name.toLowerCase()) || 
         PAYMENT_RESPONSE_HEADERS.includes(h.name.toLowerCase())
@@ -277,7 +455,7 @@ function mergeRecords(existing, incoming) {
     // 保留更完整的信息
     tx_hash: incoming.tx_hash || existing.tx_hash,
     paid_at: incoming.paid_at || existing.paid_at,
-    status: incoming.tx_hash ? 'settled' : existing.status,
+    status: incoming.status === 'settled' || incoming.tx_hash ? 'settled' : existing.status,
     confidence: Math.max(existing.confidence || 0, incoming.confidence || 0),
     updated_at: new Date().toISOString()
   };
@@ -365,7 +543,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
     }
   },
   { urls: ["<all_urls>"] },
-  ["requestHeaders"]
+  ["requestHeaders", "extraHeaders"]
 );
 
 /**
@@ -401,7 +579,7 @@ chrome.webRequest.onHeadersReceived.addListener(
     requestHeadersCache.delete(details.requestId);
   },
   { urls: ["<all_urls>"] },
-  ["responseHeaders"]
+  ["responseHeaders", "extraHeaders"]
 );
 
 // ============ 消息处理 ============
@@ -439,6 +617,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       };
       sendResponse({ success: true, stats });
     });
+    return true;
+  }
+
+  if (message.type === 'X402_PAGE_DETECTION') {
+    const data = message.data || {};
+    const responseHeaders = Object.entries(data.headers || {}).map(([name, value]) => ({
+      name,
+      value
+    }));
+
+    const record = parseX402Data(
+      data.url || 'unknown',
+      data.method || 'GET',
+      [],
+      responseHeaders,
+      data.status || 0
+    );
+
+    if (record) {
+      saveRecord(record).then(() => {
+        sendResponse({ success: true, record });
+      }).catch(() => {
+        sendResponse({ success: false });
+      });
+      return true;
+    }
+
+    sendResponse({ success: false });
     return true;
   }
 });

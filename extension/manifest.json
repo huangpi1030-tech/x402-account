@@ -5,6 +5,7 @@
   "description": "捕获 X402 微支付请求，自动记录到 X402 Account 进行对账和报表生成",
   "permissions": [
     "webRequest",
+    "webRequestBlocking",
     "storage",
     "tabs",
     "activeTab"
