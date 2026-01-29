@@ -12,11 +12,13 @@ import { Select } from "../ui/Select";
 import { useConfigStore } from "@/app/store/useConfigStore";
 import { useUIStore } from "@/app/store/useUIStore";
 import { WalletConfig, UUID } from "@/types";
+import { Loader2 } from "lucide-react";
 
 export function WalletBindingForm() {
   const [address, setAddress] = useState("");
   const [alias, setAlias] = useState("");
   const [entityId, setEntityId] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { addWalletConfig } = useConfigStore();
   const { setSuccessMessage, setError } = useUIStore();
@@ -30,6 +32,7 @@ export function WalletBindingForm() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const walletConfig: WalletConfig = {
         wallet_address: address,
@@ -40,7 +43,7 @@ export function WalletBindingForm() {
         updated_at: new Date().toISOString(),
       };
 
-      addWalletConfig(walletConfig);
+      await addWalletConfig(walletConfig);
 
       setSuccessMessage("钱包绑定成功");
       setAddress("");
@@ -50,6 +53,8 @@ export function WalletBindingForm() {
       setError(
         error instanceof Error ? error.message : "钱包绑定失败"
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -76,8 +81,15 @@ export function WalletBindingForm() {
         onChange={(e) => setEntityId(e.target.value)}
         helperText="可选：用于多实体管理"
       />
-      <Button type="submit" variant="primary" className="w-full">
-        绑定钱包
+      <Button type="submit" variant="primary" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            绑定中...
+          </>
+        ) : (
+          "绑定钱包"
+        )}
       </Button>
     </form>
   );

@@ -15,16 +15,20 @@ import { useConfigStore } from "../store/useConfigStore";
 import { useUIStore } from "../store/useUIStore";
 import { exportToCSV } from "../lib/reports";
 import { getAllCanonical } from "../lib/storage";
-import { Download, Trash2, Shield, Key, Globe } from "lucide-react";
+import { Download, Trash2, Shield, Key, Globe, Loader2 } from "lucide-react";
 
 export default function SettingsPage() {
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const [domainPolicy, setDomainPolicy] = useState("allow_all");
   const [whitelistVersion, setWhitelistVersion] = useState("v1.0.0");
+  const [isExporting, setIsExporting] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [isExportingLogs, setIsExportingLogs] = useState(false);
 
   const { setSuccessMessage, setError } = useUIStore();
 
   const handleExportData = async () => {
+    setIsExporting(true);
     try {
       const transactions = await getAllCanonical();
       const csv = exportToCSV(transactions);
@@ -42,10 +46,13 @@ export default function SettingsPage() {
       setSuccessMessage("数据导出成功");
     } catch (error) {
       setError(error instanceof Error ? error.message : "数据导出失败");
+    } finally {
+      setIsExporting(false);
     }
   };
 
   const handleClearData = async () => {
+    setIsClearing(true);
     try {
       // TODO: 实现清空所有存储的功能
       // 暂时只清空 localStorage
@@ -54,12 +61,22 @@ export default function SettingsPage() {
       setIsClearDialogOpen(false);
     } catch (error) {
       setError(error instanceof Error ? error.message : "数据清空失败");
+    } finally {
+      setIsClearing(false);
     }
   };
 
   const handleExportAuditLogs = async () => {
-    // TODO: 实现审计日志导出
-    setSuccessMessage("审计日志导出功能开发中");
+    setIsExportingLogs(true);
+    try {
+      // TODO: 实现审计日志导出
+      await new Promise(resolve => setTimeout(resolve, 500)); // 模拟延迟
+      setSuccessMessage("审计日志导出功能开发中");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "导出失败");
+    } finally {
+      setIsExportingLogs(false);
+    }
   };
 
   return (
@@ -80,9 +97,13 @@ export default function SettingsPage() {
                   <h3 className="text-sm font-medium text-gray-900">导出数据</h3>
                   <p className="text-sm text-gray-500">导出所有交易记录为 CSV 格式</p>
                 </div>
-                <Button variant="secondary" onClick={handleExportData}>
-                  <Download className="h-4 w-4 mr-2" />
-                  导出 CSV
+                <Button variant="secondary" onClick={handleExportData} disabled={isExporting}>
+                  {isExporting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  {isExporting ? "导出中..." : "导出 CSV"}
                 </Button>
               </div>
               <div className="flex items-center justify-between">
@@ -163,9 +184,13 @@ export default function SettingsPage() {
                 <h3 className="text-sm font-medium text-gray-900">导出审计日志</h3>
                 <p className="text-sm text-gray-500">导出所有审计日志记录</p>
               </div>
-              <Button variant="secondary" onClick={handleExportAuditLogs}>
-                <Download className="h-4 w-4 mr-2" />
-                导出日志
+              <Button variant="secondary" onClick={handleExportAuditLogs} disabled={isExportingLogs}>
+                {isExportingLogs ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                {isExportingLogs ? "导出中..." : "导出日志"}
               </Button>
             </div>
           </div>

@@ -10,14 +10,18 @@ import PageLayout from "../components/PageLayout";
 import { RuleList, RuleEditor } from "../components/business";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
+import { Skeleton } from "../components/Skeleton";
 import { useRuleStore } from "../store/useRuleStore";
+import { useUIStore } from "../store/useUIStore";
 import { Rule } from "@/types";
-import { Plus, GripVertical } from "lucide-react";
+import { Plus, AlertCircle } from "lucide-react";
 
 export default function RulesPage() {
-  const { rules, loadRules, addRule, updateRule } = useRuleStore();
+  const { rules, isLoading, error, loadRules, addRule, updateRule } = useRuleStore();
+  const { setSuccessMessage, setError: setUIError } = useUIStore();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadRules();
@@ -33,20 +37,45 @@ export default function RulesPage() {
     setIsEditorOpen(true);
   };
 
-  const handleSave = (rule: Rule) => {
-    if (editingRule) {
-      updateRule(rule.rule_id, rule);
-    } else {
-      addRule(rule);
+  const handleSave = async (rule: Rule) => {
+    setIsSaving(true);
+    try {
+      if (editingRule) {
+        await updateRule(rule.rule_id, rule);
+        setSuccessMessage("规则更新成功");
+      } else {
+        await addRule(rule);
+        setSuccessMessage("规则创建成功");
+      }
+      setIsEditorOpen(false);
+      setEditingRule(null);
+    } catch (err) {
+      setUIError(err instanceof Error ? err.message : "保存规则失败");
+    } finally {
+      setIsSaving(false);
     }
-    setIsEditorOpen(false);
-    setEditingRule(null);
   };
 
   const handleCancel = () => {
     setIsEditorOpen(false);
     setEditingRule(null);
   };
+
+  // 显示错误状态
+  if (error) {
+    return (
+      <PageLayout>
+        <div className="flex flex-col items-center justify-center py-12">
+          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">加载失败</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button variant="primary" onClick={() => loadRules()}>
+            重试
+          </Button>
+        </div>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout>
@@ -64,7 +93,16 @@ export default function RulesPage() {
           </Button>
         </div>
 
-        <RuleList onEdit={handleEdit} />
+        {/* Loading 状态 */}
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ) : (
+          <RuleList onEdit={handleEdit} />
+        )}
 
         {/* 规则编辑器弹窗 */}
         {isEditorOpen && (
@@ -78,6 +116,7 @@ export default function RulesPage() {
               rule={editingRule}
               onSave={handleSave}
               onCancel={handleCancel}
+              isSaving={isSaving}
             />
           </Modal>
         )}

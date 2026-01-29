@@ -12,7 +12,7 @@ import { Button } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
 import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
-import { RuleMatchExplanation } from "../../components/business";
+import { RuleMatchExplanation, AuditLogViewer } from "../../components/business";
 import { TransactionDetailModal } from "../../components/business/TransactionDetailModal";
 import { useTransactionStore } from "../../store/useTransactionStore";
 import { useRuleStore } from "../../store/useRuleStore";
@@ -21,19 +21,24 @@ import { recordAuditLog } from "../../lib/governance";
 import { ReceiptPDF } from "../../components/PDFTemplates";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import { CanonicalRecord, RuleMatchResult, TransactionStatus } from "@/types";
-import { ArrowLeft, Edit, FileText, Download, History } from "lucide-react";
+import { ArrowLeft, Edit, FileText, Download, History, Loader2, AlertCircle } from "lucide-react";
 import { formatDateTime } from "../../lib/formatters";
+import { Skeleton } from "../../components/Skeleton";
+import { useUIStore } from "../../store/useUIStore";
 
 export default function TransactionDetailPage() {
   const params = useParams();
   const router = useRouter();
   const transactionId = params.id as string;
 
-  const { transactions, loadTransactionById, saveTransaction } = useTransactionStore();
+  const { transactions, loadTransactionById, saveTransaction, isLoading, error } = useTransactionStore();
   const { rules } = useRuleStore();
+  const { setSuccessMessage, setError: setUIError } = useUIStore();
 
   const [transaction, setTransaction] = useState<CanonicalRecord | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [editForm, setEditForm] = useState({
     merchant_domain: "",
     status: "",
@@ -59,60 +64,101 @@ export default function TransactionDetailPage() {
   }, [transaction, rules]);
 
   const loadTransaction = async () => {
-    const tx = await loadTransactionById(transactionId);
-    if (tx) {
-      setTransaction(tx);
-      setEditForm({
-        merchant_domain: tx.merchant_domain,
-        status: tx.status,
-        category: tx.category || "",
-        project: tx.project || "",
-        cost_center: tx.cost_center || "",
-        reason: "",
-      });
+    setIsPageLoading(true);
+    try {
+      const tx = await loadTransactionById(transactionId);
+      if (tx) {
+        setTransaction(tx);
+        setEditForm({
+          merchant_domain: tx.merchant_domain,
+          status: tx.status,
+          category: tx.category || "",
+          project: tx.project || "",
+          cost_center: tx.cost_center || "",
+          reason: "",
+        });
+      }
+    } catch (err) {
+      setUIError(err instanceof Error ? err.message : "加载交易失败");
+    } finally {
+      setIsPageLoading(false);
     }
   };
 
   const handleSave = async () => {
     if (!transaction || !editForm.reason.trim()) {
+      setUIError("请填写修改原因");
       return;
     }
 
-    const before = { ...transaction };
-    const updated: CanonicalRecord = {
-      ...transaction,
-      merchant_domain: editForm.merchant_domain,
-      status: editForm.status as TransactionStatus,
-      category: editForm.category || undefined,
-      project: editForm.project || undefined,
-      cost_center: editForm.cost_center || undefined,
-    };
+    setIsSaving(true);
+    try {
+      const before = { ...transaction };
+      const updated: CanonicalRecord = {
+        ...transaction,
+        merchant_domain: editForm.merchant_domain,
+        status: editForm.status as TransactionStatus,
+        category: editForm.category || undefined,
+        project: editForm.project || undefined,
+        cost_center: editForm.cost_center || undefined,
+      };
 
-    // 记录审计日志
-    await recordAuditLog(
-      "transaction",
-      transaction.event_id,
-      "update_vendor",
-      "user",
-      {
-        before,
-        after: updated,
-        reason: editForm.reason,
-      }
-    );
+      // 记录审计日志
+      await recordAuditLog(
+        "transaction",
+        transaction.event_id,
+        "update_vendor",
+        "user",
+        {
+          before,
+          after: updated,
+          reason: editForm.reason,
+        }
+      );
 
-    await saveTransaction(updated);
-    setIsEditing(false);
-    await loadTransaction();
+      await saveTransaction(updated);
+      setSuccessMessage("交易已更新");
+      setIsEditing(false);
+      await loadTransaction();
+    } catch (err) {
+      setUIError(err instanceof Error ? err.message : "保存失败");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  if (!transaction) {
+  // 加载状态
+  if (isPageLoading || !transaction) {
     return (
       <PageLayout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="text-center py-12">
-            <p className="text-gray-500">加载中...</p>
+          <Skeleton className="h-10 w-24 mb-6" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+            <div>
+              <Skeleton className="h-32 w-full" />
+            </div>
           </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  // 错误状态
+  if (error) {
+    return (
+      <PageLayout>
+        <div className="flex flex-col items-center justify-center py-12">
+          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">加载失败</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button variant="primary" onClick={() => loadTransaction()}>
+            重试
+          </Button>
         </div>
       </PageLayout>
     );
@@ -235,15 +281,23 @@ export default function TransactionDetailPage() {
                     <Button
                       variant="secondary"
                       onClick={() => setIsEditing(false)}
+                      disabled={isSaving}
                     >
                       取消
                     </Button>
                     <Button
                       variant="primary"
                       onClick={handleSave}
-                      disabled={!editForm.reason.trim()}
+                      disabled={!editForm.reason.trim() || isSaving}
                     >
-                      保存
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          保存中...
+                        </>
+                      ) : (
+                        "保存"
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -255,6 +309,12 @@ export default function TransactionDetailPage() {
                       <label className="text-xs text-gray-500">事件ID</label>
                       <p className="text-sm font-mono text-gray-900 mt-1">
                         {transaction.event_id}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">证据引用</label>
+                      <p className="text-sm font-mono text-gray-900 mt-1">
+                        {transaction.evidence_ref || "未设置"}
                       </p>
                     </div>
                     <div>
@@ -375,8 +435,10 @@ export default function TransactionDetailPage() {
           title="审计日志"
           size="lg"
         >
-          {/* TODO: 集成 AuditLogViewer 组件 */}
-          <p className="text-gray-600">审计日志查看器将在这里显示</p>
+          <AuditLogViewer
+            resourceId={transaction.event_id}
+            resourceType="transaction"
+          />
         </Modal>
       )}
     </PageLayout>

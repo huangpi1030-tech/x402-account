@@ -102,6 +102,12 @@ export function TransactionDetailModal({
               </p>
             </div>
             <div>
+              <label className="text-xs text-gray-500">证据引用</label>
+              <p className="text-sm font-mono text-gray-900 mt-1">
+                {transaction.evidence_ref || "未设置"}
+              </p>
+            </div>
+            <div>
               <label className="text-xs text-gray-500">状态</label>
               <div className="mt-1 flex items-center space-x-2">
                 <span

@@ -14,6 +14,7 @@ import { Input } from "../ui/Input";
 import { useTransactionStore } from "@/app/store/useTransactionStore";
 import { useUIStore } from "@/app/store/useUIStore";
 import { CanonicalRecord } from "@/types";
+import { Loader2 } from "lucide-react";
 
 interface TransactionBulkActionsProps {
   selectedIds: string[];
@@ -30,6 +31,8 @@ export function TransactionBulkActions({
   const [project, setProject] = useState("");
   const [costCenter, setCostCenter] = useState("");
   const [reviewReason, setReviewReason] = useState("");
+  const [isCategorizing, setIsCategorizing] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
 
   const { transactions, saveTransaction } = useTransactionStore();
   const { setSuccessMessage, setError } = useUIStore();
@@ -39,6 +42,7 @@ export function TransactionBulkActions({
   );
 
   const handleBulkCategorize = async () => {
+    setIsCategorizing(true);
     try {
       // 批量更新分类信息
       for (const transaction of selectedTransactions) {
@@ -63,10 +67,13 @@ export function TransactionBulkActions({
       setError(
         error instanceof Error ? error.message : "批量归类失败"
       );
+    } finally {
+      setIsCategorizing(false);
     }
   };
 
   const handleBulkReview = async () => {
+    setIsReviewing(true);
     try {
       // 批量标记为需审核
       for (const transaction of selectedTransactions) {
@@ -88,6 +95,8 @@ export function TransactionBulkActions({
       setError(
         error instanceof Error ? error.message : "批量审核失败"
       );
+    } finally {
+      setIsReviewing(false);
     }
   };
 
@@ -144,8 +153,15 @@ export function TransactionBulkActions({
             >
               取消
             </Button>
-            <Button variant="primary" onClick={handleBulkCategorize}>
-              确认归类
+            <Button variant="primary" onClick={handleBulkCategorize} disabled={isCategorizing}>
+              {isCategorizing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  处理中...
+                </>
+              ) : (
+                "确认归类"
+              )}
             </Button>
           </>
         }
@@ -189,8 +205,15 @@ export function TransactionBulkActions({
             >
               取消
             </Button>
-            <Button variant="primary" onClick={handleBulkReview}>
-              确认标记
+            <Button variant="primary" onClick={handleBulkReview} disabled={isReviewing}>
+              {isReviewing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  处理中...
+                </>
+              ) : (
+                "确认标记"
+              )}
             </Button>
           </>
         }

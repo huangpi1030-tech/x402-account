@@ -21,9 +21,10 @@ interface RuleEditorProps {
   rule?: Rule | null;
   onSave?: (rule: Rule) => void;
   onCancel?: () => void;
+  isSaving?: boolean;
 }
 
-export function RuleEditor({ rule, onSave, onCancel }: RuleEditorProps) {
+export function RuleEditor({ rule, onSave, onCancel, isSaving = false }: RuleEditorProps) {
   const [name, setName] = useState(rule?.name || "");
   const [description, setDescription] = useState(rule?.description || "");
   const [conditions, setConditions] = useState<RuleCondition[]>(
@@ -34,6 +35,7 @@ export function RuleEditor({ rule, onSave, onCancel }: RuleEditorProps) {
   const [enabled, setEnabled] = useState(rule?.enabled ?? true);
   const [testTransaction, setTestTransaction] = useState<string>("");
   const [testResult, setTestResult] = useState<any>(null);
+  const [isTesting, setIsTesting] = useState(false);
 
   const { addRule, updateRule } = useRuleStore();
   const { setSuccessMessage, setError } = useUIStore();
@@ -91,48 +93,55 @@ export function RuleEditor({ rule, onSave, onCancel }: RuleEditorProps) {
     setConditions(newConditions);
   };
 
-  const handleTest = () => {
+  const handleTest = async () => {
     if (!testTransaction) {
       setError("请输入交易 ID 进行测试");
       return;
     }
 
-    // TODO: 从 store 获取交易记录进行测试
-    // 这里使用 Mock 数据
-    const mockTransaction: CanonicalRecord = {
-      event_id: testTransaction as any,
-      persistence_id: "test",
-      evidence_ref: "test",
-      header_hashes_json: "{}",
-      merchant_domain: "example.com",
-      request_url: "https://example.com/path",
-      amount_decimal_str: "1.0",
-      amount_base_units_str: "1000000",
-      decimals: 6,
-      asset_symbol: "USDC",
-      network: "base",
-      status: "detected" as any,
-      payee_wallet: "0x" + "1".repeat(40),
-      fx_fiat_currency: "USD",
-      created_at: new Date().toISOString() as any,
-      updated_at: new Date().toISOString() as any,
-    };
+    setIsTesting(true);
+    try {
+      // TODO: 从 store 获取交易记录进行测试
+      // 这里使用 Mock 数据
+      const mockTransaction: CanonicalRecord = {
+        event_id: testTransaction as any,
+        persistence_id: "test",
+        evidence_ref: "test",
+        header_hashes_json: "{}",
+        merchant_domain: "example.com",
+        request_url: "https://example.com/path",
+        amount_decimal_str: "1.0",
+        amount_base_units_str: "1000000",
+        decimals: 6,
+        asset_symbol: "USDC",
+        network: "base",
+        status: "detected" as any,
+        payee_wallet: "0x" + "1".repeat(40),
+        fx_fiat_currency: "USD",
+        created_at: new Date().toISOString() as any,
+        updated_at: new Date().toISOString() as any,
+      };
 
-    const testRule: Rule = {
-      rule_id: rule?.rule_id || ("test" as any),
-      name,
-      description,
-      conditions,
-      action,
-      priority,
-      enabled,
-      version: rule?.version || 1,
-      created_at: rule?.created_at || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+      const testRule: Rule = {
+        rule_id: rule?.rule_id || ("test" as any),
+        name,
+        description,
+        conditions,
+        action,
+        priority,
+        enabled,
+        version: rule?.version || 1,
+        created_at: rule?.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
-    const result = matchRule(testRule, mockTransaction);
-    setTestResult(result);
+      const result = matchRule(testRule, mockTransaction);
+      setTestResult(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "测试失败");
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   const handleSave = () => {
@@ -331,9 +340,9 @@ export function RuleEditor({ rule, onSave, onCancel }: RuleEditorProps) {
             onChange={(e) => setTestTransaction(e.target.value)}
             className="flex-1"
           />
-          <Button variant="secondary" onClick={handleTest}>
+          <Button variant="secondary" onClick={handleTest} disabled={isTesting}>
             <TestTube className="h-4 w-4 mr-2" />
-            测试
+            {isTesting ? "测试中..." : "测试"}
           </Button>
         </div>
         {testResult && (
@@ -363,9 +372,9 @@ export function RuleEditor({ rule, onSave, onCancel }: RuleEditorProps) {
             取消
           </Button>
         )}
-        <Button variant="primary" onClick={handleSave}>
+        <Button variant="primary" onClick={handleSave} disabled={isSaving}>
           <Save className="h-4 w-4 mr-2" />
-          {rule ? "更新规则" : "创建规则"}
+          {isSaving ? "保存中..." : (rule ? "更新规则" : "创建规则")}
         </Button>
       </div>
     </div>

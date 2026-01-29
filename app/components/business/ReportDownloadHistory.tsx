@@ -6,11 +6,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Download, FileText, Trash2 } from "lucide-react";
+import { Download, FileText, Trash2, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
 import { TimeDisplay } from "../ui/TimeDisplay";
+import { Skeleton } from "../Skeleton";
 import { formatDateTime } from "@/app/lib/formatters";
+import { useUIStore } from "@/app/store/useUIStore";
 
 interface ReportHistoryItem {
   id: string;
@@ -23,27 +25,71 @@ interface ReportHistoryItem {
 
 export function ReportDownloadHistory() {
   const [history, setHistory] = useState<ReportHistoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { setSuccessMessage, setError: setUIError } = useUIStore();
 
   useEffect(() => {
-    // 从 localStorage 加载下载历史
-    const stored = localStorage.getItem("x402_report_history");
-    if (stored) {
-      try {
-        setHistory(JSON.parse(stored));
-      } catch (error) {
-        console.error("加载下载历史失败:", error);
-      }
-    }
+    loadHistory();
   }, []);
 
-  const handleDelete = (id: string) => {
-    if (confirm("确定要删除这条记录吗？")) {
-      const newHistory = history.filter((item) => item.id !== id);
-      setHistory(newHistory);
-      localStorage.setItem("x402_report_history", JSON.stringify(newHistory));
+  const loadHistory = () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // 从 localStorage 加载下载历史
+      const stored = localStorage.getItem("x402_report_history");
+      if (stored) {
+        setHistory(JSON.parse(stored));
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "加载下载历史失败";
+      setError(errorMessage);
+      setUIError(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const handleDelete = (id: string) => {
+    if (confirm("确定要删除这条记录吗？")) {
+      try {
+        const newHistory = history.filter((item) => item.id !== id);
+        setHistory(newHistory);
+        localStorage.setItem("x402_report_history", JSON.stringify(newHistory));
+        setSuccessMessage("记录已删除");
+      } catch (err) {
+        setUIError("删除失败");
+      }
+    }
+  };
+
+  // Loading 状态
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
+
+  // 错误状态
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">加载失败</h3>
+        <p className="text-gray-600 mb-4">{error}</p>
+        <Button variant="primary" onClick={loadHistory}>
+          重试
+        </Button>
+      </div>
+    );
+  }
+
+  // 空状态
   if (history.length === 0) {
     return (
       <EmptyState

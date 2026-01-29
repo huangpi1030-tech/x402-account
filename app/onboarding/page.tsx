@@ -12,9 +12,10 @@ import { WalletBindingForm, WalletList } from "../components/business";
 import { Select } from "../components/ui/Select";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
+import { Skeleton } from "../components/Skeleton";
 import { useConfigStore } from "../store/useConfigStore";
 import { useUIStore } from "../store/useUIStore";
-import { CheckCircle2, Wallet, DollarSign, Server } from "lucide-react";
+import { CheckCircle2, Wallet, DollarSign, Server, Loader2, AlertCircle } from "lucide-react";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -24,13 +25,25 @@ export default function OnboardingPage() {
     { url: "https://mainnet.base.org", priority: 10, enabled: true },
     { url: "https://base.publicnode.com", priority: 5, enabled: true },
   ]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCompleting, setIsCompleting] = useState(false);
 
-  const { walletConfigs, fxConfig, rpcPoolConfig, setFxConfig, setRpcPoolConfig, loadConfigs } = useConfigStore();
-  const { setSuccessMessage } = useUIStore();
+  const { walletConfigs, fxConfig, rpcPoolConfig, setFxConfig, setRpcPoolConfig, loadConfigs, isLoading: configLoading, error } = useConfigStore();
+  const { setSuccessMessage, setError } = useUIStore();
 
   useEffect(() => {
-    loadConfigs();
-  }, [loadConfigs]);
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        await loadConfigs();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "加载配置失败");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [loadConfigs, setError]);
 
   const handleNext = () => {
     if (step < 4) {
@@ -41,34 +54,41 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleComplete = () => {
-    // 保存配置
-    if (fxCurrency) {
-      setFxConfig({
-        fiat_currency: fxCurrency,
-        fx_source: "coinbase",
-        updated_at: new Date().toISOString(),
-      });
-    }
+  const handleComplete = async () => {
+    setIsCompleting(true);
+    try {
+      // 保存配置
+      if (fxCurrency) {
+        await setFxConfig({
+          fiat_currency: fxCurrency,
+          fx_source: "coinbase",
+          updated_at: new Date().toISOString(),
+        });
+      }
 
-    if (rpcEndpoints.length > 0) {
-      setRpcPoolConfig({
-        strategy: "round_robin",
-        retry_count: 3,
-        timeout_ms: 5000,
-        endpoints: rpcEndpoints.map((ep, idx) => ({
-          url: ep.url,
-          name: `RPC ${idx + 1}`,
-          priority: ep.priority,
-          enabled: ep.enabled,
-          failure_rate: 0,
-        })),
-        updated_at: new Date().toISOString(),
-      });
-    }
+      if (rpcEndpoints.length > 0) {
+        await setRpcPoolConfig({
+          strategy: "round_robin",
+          retry_count: 3,
+          timeout_ms: 5000,
+          endpoints: rpcEndpoints.map((ep, idx) => ({
+            url: ep.url,
+            name: `RPC ${idx + 1}`,
+            priority: ep.priority,
+            enabled: ep.enabled,
+            failure_rate: 0,
+          })),
+          updated_at: new Date().toISOString(),
+        });
+      }
 
-    setSuccessMessage("初始化完成！");
-    router.push("/");
+      setSuccessMessage("初始化完成！");
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "保存配置失败");
+    } finally {
+      setIsCompleting(false);
+    }
   };
 
   const isStepComplete = (stepNum: number) => {
@@ -83,6 +103,38 @@ export default function OnboardingPage() {
         return false;
     }
   };
+
+  // 加载状态
+  if (isLoading) {
+    return (
+      <PageLayout>
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8">
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-16 w-full mb-8" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </PageLayout>
+    );
+  }
+
+  // 错误状态
+  if (error) {
+    return (
+      <PageLayout>
+        <div className="max-w-4xl mx-auto flex flex-col items-center justify-center py-12">
+          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">加载失败</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button variant="primary" onClick={() => window.location.reload()}>
+            重试
+          </Button>
+        </div>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout>
@@ -293,9 +345,16 @@ export default function OnboardingPage() {
           <Button
             variant="primary"
             onClick={handleNext}
-            disabled={step < 4 && !isStepComplete(step)}
+            disabled={(step < 4 && !isStepComplete(step)) || isCompleting}
           >
-            {step === 4 ? "完成" : "下一步"}
+            {isCompleting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                保存中...
+              </>
+            ) : (
+              step === 4 ? "完成" : "下一步"
+            )}
           </Button>
         </div>
       </div>

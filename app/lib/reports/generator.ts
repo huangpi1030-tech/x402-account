@@ -16,6 +16,7 @@ import {
 import { getAllCanonical, getCanonicalByTimeRange } from "@/app/lib/storage";
 import { addAmounts } from "../decimal";
 import { generateGapAnalysis } from "../gapAnalysis";
+import Decimal from "decimal.js";
 
 /**
  * 生成月度 Statement
@@ -111,7 +112,12 @@ function generateExecutiveSummary(
       amount: data.amount,
       count: data.count,
     }))
-    .sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount))
+    .sort((a, b) => {
+      // 使用 Decimal 进行比较，避免精度问题
+      const aDecimal = new Decimal(a.amount);
+      const bDecimal = new Decimal(b.amount);
+      return bDecimal.comparedTo(aDecimal);
+    })
     .slice(0, 5);
 
   // 计算 Top Categories
@@ -131,7 +137,12 @@ function generateExecutiveSummary(
       amount: data.amount,
       count: data.count,
     }))
-    .sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount))
+    .sort((a, b) => {
+      // 使用 Decimal 进行比较，避免精度问题
+      const aDecimal = new Decimal(a.amount);
+      const bDecimal = new Decimal(b.amount);
+      return bDecimal.comparedTo(aDecimal);
+    })
     .slice(0, 5);
 
   return {
@@ -166,7 +177,12 @@ function generateVendorBreakdown(
       sum: data.amount,
       count: data.count,
     }))
-    .sort((a, b) => parseFloat(b.sum) - parseFloat(a.sum));
+    .sort((a, b) => {
+      // 使用 Decimal 进行比较，避免精度问题
+      const aDecimal = new Decimal(a.sum);
+      const bDecimal = new Decimal(b.sum);
+      return bDecimal.comparedTo(aDecimal);
+    });
 }
 
 /**
@@ -199,7 +215,12 @@ function generateCategoryBreakdown(
         count: data.count,
       };
     })
-    .sort((a, b) => parseFloat(b.sum) - parseFloat(a.sum));
+    .sort((a, b) => {
+      // 使用 Decimal 进行比较，避免精度问题
+      const aDecimal = new Decimal(a.sum);
+      const bDecimal = new Decimal(b.sum);
+      return bDecimal.comparedTo(aDecimal);
+    });
 }
 
 /**

@@ -6,19 +6,22 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, CheckCircle2, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, X, Loader2 } from "lucide-react";
 import { CanonicalRecord, TransactionStatus } from "@/types";
 import { useTransactionStore } from "@/app/store/useTransactionStore";
+import { useUIStore } from "@/app/store/useUIStore";
 import { Button } from "../ui/Button";
 import { ConfidenceIndicator } from "../ui/ConfidenceIndicator";
 import { formatAmountDisplay, formatDateTime } from "@/app/lib/formatters";
 import { TransactionDetailModal } from "./TransactionDetailModal";
 
 export function LowConfidenceQueue() {
-  const { transactions } = useTransactionStore();
+  const { transactions, saveTransaction } = useTransactionStore();
+  const { setSuccessMessage, setError } = useUIStore();
   const [selectedTransaction, setSelectedTransaction] =
     useState<CanonicalRecord | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   // 筛选低置信度或需审核的交易
   const lowConfidenceTransactions = transactions.filter(
@@ -33,13 +36,40 @@ export function LowConfidenceQueue() {
   };
 
   const handleApprove = async (transaction: CanonicalRecord) => {
-    // TODO: 实现审核通过逻辑
-    console.log("审核通过:", transaction.event_id);
+    setProcessingId(transaction.event_id);
+    try {
+      const updated: CanonicalRecord = {
+        ...transaction,
+        status: TransactionStatus.ONCHAIN_VERIFIED,
+        confidence: 100,
+        needs_review_reason: undefined,
+        updated_at: new Date().toISOString() as any,
+      };
+      await saveTransaction(updated);
+      setSuccessMessage("交易已通过审核");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "审核失败");
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const handleReject = async (transaction: CanonicalRecord) => {
-    // TODO: 实现审核拒绝逻辑
-    console.log("审核拒绝:", transaction.event_id);
+    setProcessingId(transaction.event_id);
+    try {
+      const updated: CanonicalRecord = {
+        ...transaction,
+        status: TransactionStatus.NEEDS_REVIEW,
+        needs_review_reason: "已标记为拒绝",
+        updated_at: new Date().toISOString() as any,
+      };
+      await saveTransaction(updated);
+      setSuccessMessage("交易已标记为拒绝");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "操作失败");
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   if (lowConfidenceTransactions.length === 0) {
@@ -117,15 +147,25 @@ export function LowConfidenceQueue() {
                     variant="primary"
                     size="sm"
                     onClick={() => handleApprove(transaction)}
+                    disabled={processingId === transaction.event_id}
                   >
-                    通过
+                    {processingId === transaction.event_id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "通过"
+                    )}
                   </Button>
                   <Button
                     variant="danger"
                     size="sm"
                     onClick={() => handleReject(transaction)}
+                    disabled={processingId === transaction.event_id}
                   >
-                    拒绝
+                    {processingId === transaction.event_id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "拒绝"
+                    )}
                   </Button>
                 </div>
               </div>
