@@ -29,7 +29,7 @@ const PAYMENT_RESPONSE_HEADERS = [
 ];
 
 // Web App URL（部署后需要更新）
-const WEB_APP_ORIGIN = 'https://x402-account.vercel.app'; // TODO: 更新为你的实际部署地址
+const WEB_APP_ORIGIN = 'https://x402-account-git-main-huangpi1030-techs-projects.vercel.app/'; // TODO: 更新为你的实际部署地址
 
 // 本地存储的 key
 const STORAGE_KEY = 'x402_captured_records';

@@ -3,7 +3,7 @@
  */
 
 // Web App URL（部署后需要更新）
-const WEB_APP_URL = 'https://x402-account.vercel.app'; // TODO: 更新为你的实际部署地址
+const WEB_APP_URL = 'https://x402-account-git-main-huangpi1030-techs-projects.vercel.app/'; // TODO: 更新为你的实际部署地址
 
 // DOM 元素
 const totalCount = document.getElementById('totalCount');
